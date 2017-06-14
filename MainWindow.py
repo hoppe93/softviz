@@ -1,0 +1,183 @@
+from PyQt5 import QtWidgets
+from ui import main_design
+from PlotWindow import PlotWindow
+from SetCaption import SetCaption
+import sys
+import os.path
+import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.pyplot as plt
+from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QMessageBox
+
+
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        QtWidgets.QMainWindow.__init__(self)
+        self.ui = main_design.Ui_MainWindow()
+        self.ui.setupUi(self)
+
+        self.image = None
+        self.imageMax = 0
+        self.filename = ""
+        self.brightImageModifier = 1
+
+        # Create plot window
+        self.plotWindow = PlotWindow()
+        # Create caption dialog
+        self.captionDialog = SetCaption()
+
+        # Bind to events
+        self.bindEvents()
+
+        # Add plot types
+        self.ui.cbPlotType.addItem('Normal', 0)
+        self.ui.cbPlotType.addItem('Logarithmic', 1)
+
+        # Add color map options
+        self.ui.cbColormap.addItem('afmhot')
+        self.ui.cbColormap.addItem('GeriMap')
+        self.ui.cbColormap.addItem('jet')
+
+        # Check command-line arguments
+        if len(sys.argv) == 2:
+            if os.path.isfile(sys.argv[1]):
+                self.ui.txtFilename.setText(os.path.abspath(sys.argv[1]))
+                self.loadFile(sys.argv[1])
+
+        # Register GeriMap
+        gm = [(0, 0, 0), (.15, .15, .5), (.3, .15, .75),
+              (.6, .2, .50), (1, .25, .15), (.9, .5, 0),
+              (.9, .75, .1), (.9, .9, .5), (1, 1, 1)]
+        gerimap = LinearSegmentedColormap.from_list('GeriMap', gm)
+        gerimap_r = LinearSegmentedColormap.from_list('GeriMap_r', gm[::-1])
+        plt.register_cmap(cmap=gerimap)
+        plt.register_cmap(cmap=gerimap_r)
+
+    def bindEvents(self):
+        self.ui.sliderIntensity.valueChanged.connect(self.intensityChanged)
+        self.ui.cbPlotType.currentIndexChanged.connect(self.refreshImage)
+        self.ui.cbColormap.currentIndexChanged.connect(self.refreshImage)
+        self.ui.cbColorbar.stateChanged.connect(self.refreshImage)
+        self.ui.cbInvert.stateChanged.connect(self.refreshImage)
+        self.ui.cbBrightImage.stateChanged.connect(self.intensityChanged)
+        self.ui.cbRelativeColorbar.stateChanged.connect(self.refreshImage)
+        self.ui.btnOpen.clicked.connect(self.openFile)
+        self.ui.btnReload.clicked.connect(self.reloadFile)
+        self.ui.btnSave.clicked.connect(self.saveFile)
+        self.ui.btnSetCaption.clicked.connect(self.setCaption)
+
+        self.captionDialog.captionsUpdated.connect(self.captionsUpdated)
+
+    def captionsUpdated(self, captions):
+        self.plotWindow.setCaptions(captions)
+
+    def closeEvent(self, event):
+        self.exit()
+
+    def exit(self):
+        self.plotWindow.close()
+        self.close()
+
+    def getImage(self):
+        img = self.image
+        imgmax = self.imageMax
+        zerolevel = 0
+
+        if self.ui.cbPlotType.currentIndex() == 1:  # Normal
+            img = np.log10(img)
+            imgmax = np.log10(imgmax)
+            zerolevel = imgmax - 40
+
+            for i in range(0, len(img)-1):
+                for j in range(0, len(img[i])-1):
+                    if np.isinf(img[i][j]) or np.isnan(img[i][j]):
+                        img[i][j] = zerolevel
+
+        return img, imgmax, zerolevel
+
+    def intensityChanged(self):
+        bim = 1
+        if self.ui.cbBrightImage.isChecked():
+            bim = 1.0 / 100.0
+
+        self.ui.lblIntensity.setText(str(self.ui.sliderIntensity.value()*bim)+'%')
+
+        imgmax = self.imageMax
+        zerolevel = 0
+        if self.ui.cbPlotType.currentIndex() == 1:
+            imgmax = np.log10(imgmax)
+            zerolevel = imgmax - 40
+
+        intmax = imgmax * (self.ui.sliderIntensity.value() / 100.0) * bim
+        self.plotWindow.set_colormax(zerolevel, intmax, relativeColorbar=self.ui.cbRelativeColorbar.isChecked())
+
+    def loadFile(self, filename):
+        self.filename = filename
+        self.image = np.genfromtxt(filename)
+        self.imageMax = np.amax(self.image)
+
+        self.refreshImage()
+
+    def openFile(self):
+        filename, _ = QFileDialog.getOpenFileName(parent=self, caption="Open SOFT image file", filter="Data file (*.dat);;All files (*.*)")
+
+        if filename:
+            self.loadFile(filename)
+
+    def refreshImage(self):
+        img, imgmax, zerolevel = self.getImage()
+        if img is None:
+            return
+
+        bim = 1
+        if self.ui.cbBrightImage.isChecked():
+            bim = 1.0 / 100.0
+
+        intmax = imgmax * (self.ui.sliderIntensity.value() / 100.0) * bim
+
+        # Select colormap
+        cmname = self.ui.cbColormap.currentText()
+        # Show colorbar?
+        cbar = self.ui.cbColorbar.isChecked()
+
+        # Invert colormap?
+        if self.ui.cbInvert.isChecked():
+            cmname = cmname + '_r'
+
+        if not self.plotWindow.isVisible():
+            self.plotWindow.show()
+
+        self.plotWindow.plotImage(img, cmname=cmname,
+                                  intmin=zerolevel, intmax=intmax,
+                                  colorbar=cbar,
+                                  relativeColorbar=self.ui.cbRelativeColorbar.isChecked())
+
+    def reloadFile(self):
+        if self.filename is "":
+            return
+
+        self.loadFile(self.filename)
+
+    def saveFile(self):
+        if not self.plotWindow.isVisible():
+            QMessageBox.information(self, 'No image open', 'No SOFT image file is currently open, thus there is no image to save. Please, open an image file!')
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(self, caption='Save SOFT image', filter='Encapsulated Post-Script (*.eps);;Portable Network Graphics (*.png);;Portable Document Format (*.pdf);;Scalable Vector Graphics (*.svg)')
+
+        if filename:
+            img, imgmax, zerolevel = self.getImage()
+            intmax = imgmax * (self.ui.sliderIntensity.value() / 100.0)
+            cmname = self.ui.cbColormap.currentText()
+            cbar = self.ui.cbColorbar.isChecked()
+
+            # Invert colormap?
+            if self.ui.cbInvert.isChecked():
+                cmname = cmname + '_r'
+
+            self.plotWindow.savePlot(img, filename, cmname=cmname, intmin=zerolevel,
+                                     intmax=intmax, colorbar=cbar)
+
+    def setCaption(self):
+        self.captionDialog.show()
