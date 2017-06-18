@@ -38,6 +38,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.cbColormap.addItem('afmhot')
         self.ui.cbColormap.addItem('GeriMap')
         self.ui.cbColormap.addItem('jet')
+        self.ui.cbColormap.setCurrentIndex(1)
 
         # Check command-line arguments
         if len(sys.argv) == 2:
@@ -53,6 +54,8 @@ class MainWindow(QtWidgets.QMainWindow):
         gerimap_r = LinearSegmentedColormap.from_list('GeriMap_r', gm[::-1])
         plt.register_cmap(cmap=gerimap)
         plt.register_cmap(cmap=gerimap_r)
+
+        self.statusBar().showMessage("Ready", 1000)
 
     def bindEvents(self):
         self.ui.sliderIntensity.valueChanged.connect(self.intensityChanged)
@@ -113,9 +116,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotWindow.set_colormax(zerolevel, intmax, relativeColorbar=self.ui.cbRelativeColorbar.isChecked())
 
     def loadFile(self, filename):
+        self.ui.txtFilename.setText(filename)
         self.filename = filename
         self.image = np.genfromtxt(filename)
         self.imageMax = np.amax(self.image)
+
+        if np.amax(np.amax(np.abs(self.image))) == 0:
+            self.statusBar().showMessage("Image is empty!")
+        else:
+            self.statusBar().showMessage("Successfully loaded "+filename, 3000)
 
         self.refreshImage()
 

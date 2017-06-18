@@ -282,7 +282,7 @@
    <widget class="QPushButton" name="btnSave">
     <property name="geometry">
      <rect>
-      <x>20</x>
+      <x>10</x>
       <y>350</y>
       <width>94</width>
       <height>32</height>
@@ -320,7 +320,7 @@
    <widget class="QPushButton" name="btnInfo">
     <property name="geometry">
      <rect>
-      <x>120</x>
+      <x>110</x>
       <y>350</y>
       <width>94</width>
       <height>32</height>

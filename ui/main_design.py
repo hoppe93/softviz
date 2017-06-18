@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/main.ui'
 #
-# Created by: PyQt5 UI code generator 5.8
+# Created by: PyQt5 UI code generator 5.8.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -91,7 +91,7 @@ class Ui_MainWindow(object):
         self.label_10.setFont(font)
         self.label_10.setObjectName("label_10")
         self.btnSave = QtWidgets.QPushButton(self.centralwidget)
-        self.btnSave.setGeometry(QtCore.QRect(20, 350, 94, 32))
+        self.btnSave.setGeometry(QtCore.QRect(10, 350, 94, 32))
         self.btnSave.setObjectName("btnSave")
         self.lblIntensity = QtWidgets.QLabel(self.centralwidget)
         self.lblIntensity.setGeometry(QtCore.QRect(470, 240, 63, 20))
@@ -103,7 +103,7 @@ class Ui_MainWindow(object):
         self.lblIntensity.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
         self.lblIntensity.setObjectName("lblIntensity")
         self.btnInfo = QtWidgets.QPushButton(self.centralwidget)
-        self.btnInfo.setGeometry(QtCore.QRect(120, 350, 94, 32))
+        self.btnInfo.setGeometry(QtCore.QRect(110, 350, 94, 32))
         self.btnInfo.setObjectName("btnInfo")
         self.cbColorbar = QtWidgets.QCheckBox(self.centralwidget)
         self.cbColorbar.setGeometry(QtCore.QRect(300, 140, 181, 29))

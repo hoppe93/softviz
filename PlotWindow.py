@@ -20,6 +20,7 @@ class PlotWindow(QtWidgets.QFrame):
         self.image = None
         self.ax = None
         self.captions = list()
+        self.setWindowTitle('Synthetic synchrotron image')
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.toolbar)
