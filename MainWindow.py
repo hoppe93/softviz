@@ -38,7 +38,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.cbColormap.addItem('afmhot')
         self.ui.cbColormap.addItem('GeriMap')
         self.ui.cbColormap.addItem('jet')
-        self.ui.cbColormap.setCurrentIndex(1)
 
         # Check command-line arguments
         if len(sys.argv) == 2:
@@ -56,6 +55,7 @@ class MainWindow(QtWidgets.QMainWindow):
         plt.register_cmap(cmap=gerimap_r)
 
         self.statusBar().showMessage("Ready", 1000)
+        self.ui.cbColormap.setCurrentIndex(1)
 
     def bindEvents(self):
         self.ui.sliderIntensity.valueChanged.connect(self.intensityChanged)
