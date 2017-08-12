@@ -5,6 +5,7 @@ from SetCaption import SetCaption
 import sys
 import os.path
 import numpy as np
+import scipy.io
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QFileDialog
@@ -18,6 +19,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
 
         self.image = None
+        self.detectorPosition = None
+        self.detectorDirection = None
+        self.detectorVisang = None
+        self.wall = None
         self.imageMax = 0
         self.filename = ""
         self.brightImageModifier = 1
@@ -118,7 +123,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def loadFile(self, filename):
         self.ui.txtFilename.setText(filename)
         self.filename = filename
-        self.image = np.genfromtxt(filename)
+        self.readfile(filename)
         self.imageMax = np.amax(self.image)
 
         if np.amax(np.amax(np.abs(self.image))) == 0:
@@ -133,6 +138,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if filename:
             self.loadFile(filename)
+
+    def readfile(self, filename):
+        # DAT-file: for legacy support
+        if filename.endswith('.dat'):
+            self.image = np.genfromtxt(filename)
+        elif filename.endswith('.mat'):
+            matfile = scipy.io.loadmat(filename)
+
+            self.image = np.transpose(matfile['image'])
+            #self.image = matfile['image']
+            self.detectorPosition = matfile['detectorPosition'][0]
+            self.detectorDirection = matfile['detectorDirection'][0]
+            self.detectorVisang = matfile['detectorVisang'][0]
+            self.wall = matfile['wall']
+        else:
+            print('ERROR: Unrecognized image format. Unable to load file.')
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText(e.strerror)
+            msg.setWindowTitle('Error loading file')
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
 
     def refreshImage(self):
         img, imgmax, zerolevel = self.getImage()
