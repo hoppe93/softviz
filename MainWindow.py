@@ -59,7 +59,7 @@ class MainWindow(QtWidgets.QMainWindow):
         plt.register_cmap(cmap=gerimap)
         plt.register_cmap(cmap=gerimap_r)
 
-        self.statusBar().showMessage("Ready", 1000)
+        #self.statusBar().showMessage("Ready", 1000)
         self.ui.cbColormap.setCurrentIndex(1)
 
     def bindEvents(self):
@@ -129,7 +129,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if np.amax(np.amax(np.abs(self.image))) == 0:
             self.statusBar().showMessage("Image is empty!")
         else:
-            self.statusBar().showMessage("Successfully loaded "+filename, 3000)
+            #self.statusBar().showMessage("Successfully loaded "+filename, 3000)
+            self.statusBar().showMessage("Max value = "+str(self.imageMax))
 
         self.refreshImage()
 
