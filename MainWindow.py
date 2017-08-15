@@ -37,6 +37,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Add color map options
         self.ui.cbColormap.addItem('afmhot')
         self.ui.cbColormap.addItem('GeriMap')
+        self.ui.cbColormap.addItem('gray')
+        self.ui.cbColormap.addItem('viridis')
         self.ui.cbColormap.addItem('jet')
 
         # Check command-line arguments
