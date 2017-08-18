@@ -137,7 +137,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.refreshImage()
 
     def openFile(self):
-        filename, _ = QFileDialog.getOpenFileName(parent=self, caption="Open SOFT image file", filter="Data file (*.dat);;All files (*.*)")
+        filename, _ = QFileDialog.getOpenFileName(parent=self, caption="Open SOFT image file", filter="SOFT Output (*.dat *.h5 *.hdf5 *.mat *.sdt);;All files (*.*)")
 
         if filename:
             self.loadFile(filename)
@@ -210,6 +210,9 @@ class MainWindow(QtWidgets.QMainWindow):
             intmax = imgmax * (self.ui.sliderIntensity.value() / 100.0)
             cmname = self.ui.cbColormap.currentText()
             cbar = self.ui.cbColorbar.isChecked()
+
+            if self.ui.cbBrightImage.isChecked():
+                intmax = intmax / 100.0
 
             # Invert colormap?
             if self.ui.cbInvert.isChecked():
