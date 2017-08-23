@@ -6,6 +6,7 @@ import sys
 import os.path
 import numpy as np
 import scipy.io
+import h5py
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QFileDialog
@@ -147,14 +148,23 @@ class MainWindow(QtWidgets.QMainWindow):
         if filename.endswith('.dat'):
             self.image = np.genfromtxt(filename)
         elif filename.endswith('.mat'):
-            matfile = scipy.io.loadmat(filename)
+            try:
+                matfile = scipy.io.loadmat(filename)
 
-            self.image = np.transpose(matfile['image'])
-            #self.image = matfile['image']
-            self.detectorPosition = matfile['detectorPosition'][0]
-            self.detectorDirection = matfile['detectorDirection'][0]
-            self.detectorVisang = matfile['detectorVisang'][0]
-            self.wall = matfile['wall']
+                self.image = np.transpose(matfile['image'])
+                #self.image = matfile['image']
+                self.detectorPosition = matfile['detectorPosition'][0]
+                self.detectorDirection = matfile['detectorDirection'][0]
+                self.detectorVisang = matfile['detectorVisang'][0]
+                self.wall = matfile['wall']
+            except NotImplementedError:
+                matfile = h5py.File(filename)
+
+                self.image = matfile['image'][:,:]
+                self.detectorPosition = matfile['detectorPosition'][0]
+                self.detectorDirection = matfile['detectorDirection'][0]
+                self.detectorVisang = matfile['detectorVisang'][0]
+                self.wall = matfile['wall'][:,:]
         else:
             print('ERROR: Unrecognized image format. Unable to load file.')
             msg = QMessageBox()
