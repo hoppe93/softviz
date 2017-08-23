@@ -160,7 +160,7 @@ class MainWindow(QtWidgets.QMainWindow):
             except NotImplementedError:
                 matfile = h5py.File(filename)
 
-                self.image = matfile['image'][:,:]
+                self.image = np.transpose(matfile['image'][:,:])
                 self.detectorPosition = matfile['detectorPosition'][0]
                 self.detectorDirection = matfile['detectorDirection'][0]
                 self.detectorVisang = matfile['detectorVisang'][0]
