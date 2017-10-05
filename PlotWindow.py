@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib
 import numpy as np
+import plotwall
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -21,6 +22,19 @@ class PlotWindow(QtWidgets.QFrame):
         self.ax = None
         self.captions = list()
         self.setWindowTitle('Synthetic synchrotron image')
+        self.showTopview = False
+        self.wall = None
+        self.vesselStatus = {
+            'cs': {
+                'wall': True,
+                'separatrix': False,
+                'flux': False
+            }
+        }
+
+        self.detectorPosition = np.array([0,0,0])
+        self.detectorDirection = np.array([1,0,0])
+        self.detectorVisang = 0.5
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.toolbar)
@@ -48,19 +62,34 @@ class PlotWindow(QtWidgets.QFrame):
             msg.setWindowTitle('Runtime Error')
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
+    
+    def getImageExtent(self, imageData):
+        #distance = np.abs(np.dot(self.detectorPosition, self.detectorDirection))
+        #L = np.sqrt(2) * distance * np.tan(self.detectorVisang / 2)
+        #pixelscale = L / 8
+        #extent = np.array([-1,1,-1,1]) * pixelscale
+
+        extent = np.array([-1,1,-1,1])/2 * np.tan(self.detectorVisang/2)
+        return extent
 
     def genImage(self, fig, imageData, cmname=None, intmin=0, intmax=1,
                   colorbar=False, relativeColorbar=False):
         colormap = plt.get_cmap(cmname)
 
+        # Compute image extent
+        extent = self.getImageExtent(imageData)
+
         fig.clear()
         ax = fig.add_subplot(111)
         #ax.hold(False)
         image = ax.imshow(imageData, origin='lower', cmap=colormap,
-                          interpolation=None, clim=(intmin, intmax))
+                          interpolation=None, clim=(intmin, intmax),
+                          extent=extent)
         fig.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
         ax.set_axis_off()
         #ax.set_facecolor('black')
+
+        self.plotWallOverlays(ax)
 
         if colorbar:
             if relativeColorbar:
@@ -71,6 +100,9 @@ class PlotWindow(QtWidgets.QFrame):
                 cbar = fig.colorbar(image, shrink=0.8)
             cbar.ax.tick_params(labelcolor='white', color='white')
 
+        if self.showTopview:
+            pass
+
         return ax, image
 
     def plotImage(self, imageData, cmname=None, intmin=0, intmax=1,
@@ -79,6 +111,17 @@ class PlotWindow(QtWidgets.QFrame):
                                             intmin, intmax, colorbar, relativeColorbar)
         self.drawCaptions(self.figure, self.ax)
         self.drawSafe()
+
+    def plotWallOverlays(self, ax):
+        if self.vesselStatus['cs']['wall']:
+            plotwall.plotOrthogonalCrossSection(ax, self.wall, self.detectorPosition, self.detectorDirection, linewidth=1)
+
+        """
+        if self.vesselStatus['cs']['separatrix']:
+            Wall.plotCrossSection(ax, self.wall, self.detectorDirection)
+        if self.vesselStatus['cs']['flux']:
+            Wall.plotCrossSection(ax, self.wall, self.detectorDirection)
+        """
 
     def set_colormax(self, intmin=0, intmax=1, relativeColorbar=False):
         if self.image is not None:
@@ -109,8 +152,26 @@ class PlotWindow(QtWidgets.QFrame):
 
         canvas.print_figure(filename, dpi=len(imageData[0]))
 
+    def setCamera(self, position, viewdir, visionangle):
+        self.detectorPosition = position
+        self.detectorDirection = viewdir
+        self.detectorVisang = visionangle
+
     def setCaptions(self, captions):
         self.captions = captions
         self.drawCaptions(self.figure, self.ax)
         self.drawSafe()
+
+    def setVesselPlot(self, status):
+        self.vesselStatus = status
+        self.plotWallOverlays(self.ax)
+        self.drawSafe()
+
+    def setTopview(self, rmin, rmax, show=True):
+        self.showTopview = show
+        self.topview_rmin = rmin
+        self.topview_rmax = rmax
+
+    def setWall(self, wall):
+        self.wall = wall
 

@@ -111,19 +111,6 @@
      </rect>
     </property>
    </widget>
-   <widget class="QCheckBox" name="cbWalls">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>200</y>
-      <width>191</width>
-      <height>29</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Show device walls</string>
-    </property>
-   </widget>
    <widget class="QSlider" name="sliderIntensity">
     <property name="geometry">
      <rect>
@@ -398,7 +385,7 @@
    <widget class="QCheckBox" name="cbTopview">
     <property name="geometry">
      <rect>
-      <x>300</x>
+      <x>20</x>
       <y>200</y>
       <width>191</width>
       <height>26</height>
@@ -406,6 +393,19 @@
     </property>
     <property name="text">
      <string>Topview</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="btnWall">
+    <property name="geometry">
+     <rect>
+      <x>353</x>
+      <y>350</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Wall Overlay</string>
     </property>
    </widget>
   </widget>

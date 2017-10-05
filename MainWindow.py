@@ -2,6 +2,7 @@ from PyQt5 import QtWidgets
 from ui import main_design
 from PlotWindow import PlotWindow
 from SetCaption import SetCaption
+from Vessel import Vessel
 import sys
 import os.path
 import numpy as np
@@ -20,18 +21,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
 
         self.image = None
+        self.filename = ""
         self.detectorPosition = None
         self.detectorDirection = None
         self.detectorVisang = None
         self.wall = None
         self.imageMax = 0
-        self.filename = ""
         self.brightImageModifier = 1
 
         # Create plot window
         self.plotWindow = PlotWindow()
         # Create caption dialog
         self.captionDialog = SetCaption()
+        # Create vessel dialog
+        self.vesselDialog = Vessel()
 
         # Bind to events
         self.bindEvents()
@@ -62,7 +65,6 @@ class MainWindow(QtWidgets.QMainWindow):
         plt.register_cmap(cmap=gerimap)
         plt.register_cmap(cmap=gerimap_r)
 
-        #self.statusBar().showMessage("Ready", 1000)
         self.ui.cbColormap.setCurrentIndex(1)
 
     def bindEvents(self):
@@ -73,12 +75,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.cbInvert.stateChanged.connect(self.refreshImage)
         self.ui.cbBrightImage.stateChanged.connect(self.intensityChanged)
         self.ui.cbRelativeColorbar.stateChanged.connect(self.refreshImage)
+        self.ui.cbTopview.stateChanged.connect(self.showTopview)
         self.ui.btnOpen.clicked.connect(self.openFile)
         self.ui.btnReload.clicked.connect(self.reloadFile)
         self.ui.btnSave.clicked.connect(self.saveFile)
         self.ui.btnSetCaption.clicked.connect(self.setCaption)
+        self.ui.btnWall.clicked.connect(self.setWallOverlay)
 
         self.captionDialog.captionsUpdated.connect(self.captionsUpdated)
+        self.vesselDialog.overlayChanged.connect(self.vesselUpdated)
 
     def captionsUpdated(self, captions):
         self.plotWindow.setCaptions(captions)
@@ -88,6 +93,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def exit(self):
         self.plotWindow.close()
+        self.captionDialog.close()
+        self.vesselDialog.close()
         self.close()
 
     def getImage(self):
@@ -145,8 +152,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def readfile(self, filename):
         # DAT-file: for legacy support
-        if filename.endswith('.dat'):
+        if filename.endswith('.dat') or filename.endswith('.topview'):
             self.image = np.genfromtxt(filename)
+            self.ui.cbTopview.setEnabled(False)
         elif filename.endswith('.mat'):
             try:
                 matfile = scipy.io.loadmat(filename)
@@ -161,10 +169,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 matfile = h5py.File(filename)
 
                 self.image = np.transpose(matfile['image'][:,:])
-                self.detectorPosition = matfile['detectorPosition'][0]
-                self.detectorDirection = matfile['detectorDirection'][0]
-                self.detectorVisang = matfile['detectorVisang'][0]
+                self.detectorPosition = matfile['detectorPosition'][:,0]
+                self.detectorDirection = matfile['detectorDirection'][:,0]
+                #self.detectorPosition = np.array([0,-3,0])
+                #self.detectorDirection = np.array([0,1,0])
+                self.detectorVisang = matfile['detectorVisang'][0,0]
                 self.wall = matfile['wall'][:,:]
+
+            self.wall_rmax = np.amax(self.wall[0,:])
+            self.wall_rmin = np.amin(self.wall[0,:])
+            self.plotWindow.setWall(self.wall)
+            self.plotWindow.setCamera(self.detectorPosition, self.detectorDirection, self.detectorVisang)
         else:
             print('ERROR: Unrecognized image format. Unable to load file.')
             msg = QMessageBox()
@@ -233,3 +248,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def setCaption(self):
         self.captionDialog.show()
+
+    def setWallOverlay(self):
+        self.vesselDialog.show()
+
+    def showTopview(self):
+        if self.wall == None: return
+        self.plotWindow.setTopview(rmin=self.wall_rmin, rmax=self.wall_rmax, show=self.ui.cbTopview.isChecked())
+
+    def vesselUpdated(self, status):
+        self.plotWindow.setVesselPlot(status)
+

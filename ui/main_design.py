@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/main.ui'
 #
-# Created by: PyQt5 UI code generator 5.8.2
+# Created by: PyQt5 UI code generator 5.7
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -37,9 +37,6 @@ class Ui_MainWindow(object):
         self.cbColormap = QtWidgets.QComboBox(self.centralwidget)
         self.cbColormap.setGeometry(QtCore.QRect(100, 90, 441, 30))
         self.cbColormap.setObjectName("cbColormap")
-        self.cbWalls = QtWidgets.QCheckBox(self.centralwidget)
-        self.cbWalls.setGeometry(QtCore.QRect(20, 200, 191, 29))
-        self.cbWalls.setObjectName("cbWalls")
         self.sliderIntensity = QtWidgets.QSlider(self.centralwidget)
         self.sliderIntensity.setGeometry(QtCore.QRect(10, 260, 531, 26))
         self.sliderIntensity.setMinimum(1)
@@ -121,8 +118,11 @@ class Ui_MainWindow(object):
         self.cbBrightImage.setGeometry(QtCore.QRect(20, 140, 181, 26))
         self.cbBrightImage.setObjectName("cbBrightImage")
         self.cbTopview = QtWidgets.QCheckBox(self.centralwidget)
-        self.cbTopview.setGeometry(QtCore.QRect(300, 200, 191, 26))
+        self.cbTopview.setGeometry(QtCore.QRect(20, 200, 191, 26))
         self.cbTopview.setObjectName("cbTopview")
+        self.btnWall = QtWidgets.QPushButton(self.centralwidget)
+        self.btnWall.setGeometry(QtCore.QRect(353, 350, 101, 31))
+        self.btnWall.setObjectName("btnWall")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 560, 25))
@@ -143,7 +143,6 @@ class Ui_MainWindow(object):
         self.txtFilename.setPlaceholderText(_translate("MainWindow", "Image filename"))
         self.label.setText(_translate("MainWindow", "Plot type:"))
         self.label_2.setText(_translate("MainWindow", "Colormap:"))
-        self.cbWalls.setText(_translate("MainWindow", "Show device walls"))
         self.label_3.setText(_translate("MainWindow", "Maximum intensity level:"))
         self.label_5.setText(_translate("MainWindow", "20%"))
         self.label_6.setText(_translate("MainWindow", "40%"))
@@ -160,4 +159,5 @@ class Ui_MainWindow(object):
         self.cbRelativeColorbar.setText(_translate("MainWindow", "Use relative color scale"))
         self.cbBrightImage.setText(_translate("MainWindow", "Bright image"))
         self.cbTopview.setText(_translate("MainWindow", "Topview"))
+        self.btnWall.setText(_translate("MainWindow", "Wall Overlay"))
 
