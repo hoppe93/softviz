@@ -23,16 +23,14 @@ class SyntheticImage:
         self.detectorPosition = None
         self.detectorVisang = None
         self.figure = figure
+        self.overlayWallCrossSection = False# Show wall cross-section overlay?
+        self.overlaySeparatrix = False      # Show separatrix overlay?
+        self.overlayFluxOverlay = False     # Show flux surface overlay?
+        self.overlayTopview = False         # Show topview overlay?
         self.imageData = None
         self.imageIntensityMax = 1      # Ceiling of colormap
         self.logarithmic = False
-        self.overlays = {
-            'wall': False,
-            'separatrix': False,
-            'flux': False,
-            'topview': False,
-            'tokamak': []
-        }
+        self.overlays =[]
         self.separatrix = None
         self.wall = None
         self.wall_rmax = None
@@ -43,7 +41,8 @@ class SyntheticImage:
         self._fluxOverlayHandles = []   # Matplotlib handles to flux overlays
         self._imageMax = 0              # Max intensity of image
         self._separatrixOverlayHandle = None
-        self._wallOverlayHandle = None
+        self._topviewOverlayHandles = None
+        self._wallCrossSectionOverlayHandle = None
 
         if self.figure is None:
             self.figure = Figure(facecolor='black')
@@ -62,8 +61,11 @@ class SyntheticImage:
     # GETTERS
     #
     #####################################################
-    def hasImage(self): return self.imageData is not None
     def getImageMax(self): return self._imageMax
+    def hasImage(self): return self.imageData is not None
+    def hasSeparatrix(self): return self.separatrix is not None
+    def hasTopview(self): return self.hasWall()
+    def hasWall(self): return self.wall is not None
 
     #####################################################
     #
@@ -164,8 +166,8 @@ class SyntheticImage:
                 self.detectorVisang = matfile['detectorVisang'][0,0]
                 self.wall = matfile['wall'][:,:]
 
-            self.wall_rmax = np.amax(self.wall[0,:])
-            self.wall_rmin = np.amin(self.wall[0,:])
+            self.wall_rmax = np.amax(self.wall[:,0])
+            self.wall_rmin = np.amin(self.wall[:,0])
         else:
             raise NotImplementedError("Unrecognized image format. Unable to load file.")
 
@@ -223,6 +225,7 @@ class SyntheticImage:
         ticks if 'colorbarRelative' is True.
         """
         self.removeColorbar()
+        self.colorbar = True
 
         if self.colorbarRelative:
             mx = self.imageIntensityMax * self._imageMax
@@ -266,17 +269,10 @@ class SyntheticImage:
         Plot wall/equilibrium overlays as specified in
         the 'overlays' list.
         """
-        if self.overlays['wall'] and self.wall is not None:
-            plotOrthogonalCrossSection(self.axes, self.wall, self.detectorPosition, self.detectorDirection, linewidth=1)
-        elif self._wallOverlayHandle is not None:
-            self._wallOverlayHandle.remove()
-            self._wallOverlayHandle = None
-
-        if self.overlays['separatrix'] and self.separatrix is not None:
-            plotCrossSection(self.axes, self.wall, self.detectorDirection)
-        elif self._separatrixOverlayHandle is not None:
-            self._separatrixOverlayHandle.remove()
-            self._separatrixOverlayHandle = None
+        if self.overlayWallCrossSection:
+            self.plotWallCrossSection()
+        if self.overlaySeparatrix:
+            self.plotSeparatrix()
 
         """
         if self.vesselStatus['flux']:
@@ -293,6 +289,84 @@ class SyntheticImage:
                 th.remove()
             self._topviewOverlayHandles = []
         """
+
+    def plotWallCrossSection(self):
+        """
+        Plots a wall cross section ovelay over the image.
+        Also toggles the setting so that 'assembleImage' will
+        automatically include the overlay.
+        """
+        if self.wall is None:
+            raise ValueError("No wall data has been provided!")
+
+        self.removeWallCrossSection()
+        self._wallCrossSectionOverlayHandle = plotOrthogonalCrossSection(self.axes, self.wall, self.detectorPosition, self.detectorDirection, linewidth=1)
+        self.overlayWallCrossSection = True
+
+    def removeWallCrossSection(self):
+        """
+        Removes any wall cross section overlay plotted
+        over the image.
+        """
+        if self._wallCrossSectionOverlayHandle is not None:
+            self._wallCrossSectionOverlayHandle.remove()
+            self._wallCrossSectionOverlayHandle = None
+
+        self.overlayWallCrossSection = False
+
+    def plotSeparatrixCrossSection(self):
+        """
+        Plots a separatrix ovelay over the image.
+        Also toggles the setting so that 'assembleImage' will
+        automatically include the overlay.
+        """
+        if self.separatrix is None:
+            raise ValueError("No separatrix data has been provided!")
+
+        self.removeSeparatrix()
+        self._wallSeparatrixHandle = plotOrthogonalCrossSection(self.axes, self.separatrix, self.detectorPosition, self.detectorDirection, linewidth=1)
+        self.overlaySeparatrix = True
+
+    def removeSeparatrix(self):
+        """
+        Removes any separatrix overlay plotted
+        over the image.
+        """
+        if self._wallSeparatrixHandle is not None:
+            self._wallSeparatrixHandle.remove()
+            self._wallSeparatrixHandle = None
+        self.overlaySeparatrix = False
+
+    def plotTopview(self):
+        """
+        Plots a topview ovelay over the image.
+        Also toggles the setting so that 'assembleImage' will
+        automatically include the overlay.
+        """
+        t = np.linspace(0, 2*np.pi)
+        extent = self._getImageExtent()
+
+        rmaj = extent[1]
+        rmin = rmaj * (self.wall_rmin/self.wall_rmax)
+
+        h1 = self.axes.plot(rmaj * np.cos(t), rmaj * np.sin(t), 'w', linewidth=1)[0]
+        h2 = self.axes.plot(rmin * np.cos(t), rmin * np.sin(t), 'w', linewidth=1)[0]
+
+        self._topviewOverlayHandles = (h1, h2)
+        self.overlayTopview = True
+
+    def removeTopview(self):
+        """
+        Removes any topview overlay plotted
+        over the image.
+        """
+        if self._topviewOverlayHandles is not None:
+            h1, h2 = self._topviewOverlayHandles
+            h1.remove()
+            h2.remove()
+
+        self._topviewOverlayHandles = None
+        self.overlayTopview = False
 
     #####################################################
     #

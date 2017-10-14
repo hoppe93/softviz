@@ -67,7 +67,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.cbInvert.stateChanged.connect(self.setColormap)
         self.ui.cbBrightImage.stateChanged.connect(self.intensityChanged)
         self.ui.cbRelativeColorbar.stateChanged.connect(self.toggleColorbar)
+        self.ui.cbSeparatrix.stateChanged.connect(self.showSeparatrix)
         self.ui.cbTopview.stateChanged.connect(self.showTopview)
+        self.ui.cbWallCross.stateChanged.connect(self.showWallCrossSection)
         self.ui.btnOpen.clicked.connect(self.openFile)
         self.ui.btnReload.clicked.connect(self.reloadFile)
         self.ui.btnSave.clicked.connect(self.saveFile)
@@ -107,6 +109,14 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             self.plotWindow.image.loadImageFile(filename)
             imageMax = self.plotWindow.image.getImageMax()
+
+            # Enable overlay checkboxes
+            if self.plotWindow.image.hasSeparatrix():
+                self.ui.cbSeparatrix.setEnabled(True)
+            if self.plotWindow.image.hasTopview():
+                self.ui.cbTopview.setEnabled(True)
+            if self.plotWindow.image.hasWall():
+                self.ui.cbWallCross.setEnabled(True)
 
             if imageMax == 0:
                 self.statusBar().showMessage("Image is empty!")
@@ -167,10 +177,29 @@ class MainWindow(QtWidgets.QMainWindow):
     def setWallOverlay(self):
         self.vesselDialog.show()
 
+    def showSeparatrix(self):
+        if self.ui.cbSeparatrix.isChecked():
+            self.plotWindow.image.plotSeparatrix()
+        else:
+            self.plotWindow.image.removeSeparatrix()
+
+        self.plotWindow.syntheticImageUpdated()
+    
     def showTopview(self):
-        #if self.wall == None: return
-        #self.plotWindow.setTopview(rmin=self.wall_rmin, rmax=self.wall_rmax, show=self.ui.cbTopview.isChecked())
-        pass
+        if self.ui.cbTopview.isChecked():
+            self.plotWindow.image.plotTopview()
+        else:
+            self.plotWindow.image.removeTopview()
+
+        self.plotWindow.syntheticImageUpdated()
+    
+    def showWallCrossSection(self):
+        if self.ui.cbWallCross.isChecked():
+            self.plotWindow.image.plotWallCrossSection()
+        else:
+            self.plotWindow.image.removeWallCrossSection()
+
+        self.plotWindow.syntheticImageUpdated()
     
     def toggleColorbar(self):
         self.plotWindow.image.toggleColorbar(self.ui.cbColorbar.isChecked())
