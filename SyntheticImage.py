@@ -8,10 +8,11 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from matplotlib.colors import LinearSegmentedColormap
 
 class SyntheticImage:
     
-    def __init__(self, figure=None, canvas=None):
+    def __init__(self, figure=None, canvas=None, registerGeriMap=True):
         # PROPERTIES
         self.canvas = canvas
         self.captions = []
@@ -38,6 +39,7 @@ class SyntheticImage:
         self.wall_rmin = None
 
         # Internal properties
+        self._colorbar = None
         self._fluxOverlayHandles = []   # Matplotlib handles to flux overlays
         self._imageMax = 0              # Max intensity of image
         self._separatrixOverlayHandle = None
@@ -52,11 +54,15 @@ class SyntheticImage:
 
         self.axes = None
 
+        if registerGeriMap:
+            SyntheticImage.registerGeriMap()
+
     #####################################################
     #
     # GETTERS
     #
     #####################################################
+    def hasImage(self): return self.imageData is not None
     def getImageMax(self): return self._imageMax
 
     #####################################################
@@ -88,7 +94,7 @@ class SyntheticImage:
         given to this SyntheticImage object. This means
         any overlays, colorbars and captions will be plotted.
         """
-        self.figure.clear()
+        self.clearImage()
         self.axes = self.figure.add_subplot(111)
 
         # Plot image
@@ -112,11 +118,14 @@ class SyntheticImage:
             raise ValueError("No image has been plotted, so there is no image to change intensity for.")
 
         if relative:
-            intmax = maxIntensity * self._imageMax
-            self.imageIntensityMax = intmax
-        else:
             self.imageIntensityMax = maxIntensity
-            intmax = maxIntensity
+        else:
+            if self._imageMax > 0:
+                self.imageIntensityMax = maxIntensity / self._imageMax
+            else:
+                self.imageIntensityMax = 1
+
+        intmax = self.imageIntensityMax * self._imageMax
 
         zerolevel = 0
         if self.logarithmic:
@@ -163,7 +172,8 @@ class SyntheticImage:
         self._imageMax = np.amax(self.imageData)
         self._intmax = self._imageMax
 
-    def registerGeriMap(self):
+    @staticmethod
+    def registerGeriMap():
         """
         Register the perceptually uniform colormap 'GeriMap' with matplotlib
         """
@@ -178,11 +188,23 @@ class SyntheticImage:
     def savePlot(self, filename):
         pass
 
+    def update(self):
+        self.canvas.draw()
+
     #####################################################
     #
     # SEMI-PUBLIC PLOT ROUTINES
     #
     #####################################################
+    def clearImage(self):
+        self.figure.clear()
+
+        # Reset plot handles
+        self._colorbar = None
+        self._fluxOverlayHandles = []
+        self._separatrixOverlayHandle = None
+        self._wallOverlayHandle = None
+
     def plotCaptions(self):
         for i in range(0, len(self.axes.texts)):
             self.axes.texts.remove(self.axes.texts[0])
@@ -200,13 +222,23 @@ class SyntheticImage:
         Respects the 'colorbarRelative' setting and uses percentage
         ticks if 'colorbarRelative' is True.
         """
+        self.removeColorbar()
+
         if self.colorbarRelative:
-            mx = self.imageIntensityMax
-            self._colorbar = self.figure.colorbar(image, shrink=0.8, ticks=[0,mx*0.2,mx*0.4,mx*0.6,mx*0.8,mx])
-            self._colorbar.ax.set_yticklabels(['0\%','20\%','40\%','60\%','80\%','100\%'])
+            mx = self.imageIntensityMax * self._imageMax
+            self._colorbar = self.figure.colorbar(self._image, shrink=0.8, ticks=[0,mx*0.2,mx*0.4,mx*0.6,mx*0.8,mx])
+            self._colorbar.ax.set_yticklabels(['0%','20%','40%','60%','80%','100%'])
         else:
-            self._colorbar = self.figure.colorbar(image, shrink=0.8)
+            self._colorbar = self.figure.colorbar(self._image, shrink=0.8)
         self._colorbar.ax.tick_params(labelcolor='white', color='white')
+
+    def removeColorbar(self):
+        """
+        Removes any existing colorbar on the plot
+        """
+        if self._colorbar is not None:
+            self._colorbar.remove()
+            self._colorbar = None
 
     def plotImage(self):
         """
@@ -228,7 +260,6 @@ class SyntheticImage:
                           interpolation=None, clim=(intmin, intmax),
                           extent=extent)
         self.axes.set_axis_off()
-        print('Drew image')
 
     def plotOverlays(self):
         """
@@ -277,7 +308,7 @@ class SyntheticImage:
         are returned,
         """
         img = self.imageData
-        intmax = self.imageIntensityMax
+        intmax = self.imageIntensityMax * self._imageMax
         zerolevel = 0
 
         if self.logarithmic:

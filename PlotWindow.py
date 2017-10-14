@@ -19,7 +19,6 @@ class PlotWindow(QtWidgets.QFrame):
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.image = SyntheticImage(self.figure, self.canvas)
-        self.ax = None
         self.setWindowTitle('Synthetic synchrotron image')
 
         layout = QtWidgets.QVBoxLayout()
@@ -29,7 +28,7 @@ class PlotWindow(QtWidgets.QFrame):
 
     def drawSafe(self):
         try:
-            self.canvas.draw()
+            self.image.update()
         except RuntimeError as e:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
@@ -75,6 +74,10 @@ class PlotWindow(QtWidgets.QFrame):
     def setSyntheticImage(self, image):
         self.image = image
 
-    def syntheticImageUpdated(self):
+    def syntheticImageUpdated(self, hard=False):
+        if not self.image.hasImage(): return
+        if hard:
+            self.image.assembleImage()
+
         self.drawSafe()
 

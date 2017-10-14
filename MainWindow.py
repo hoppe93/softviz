@@ -57,15 +57,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.txtFilename.setText(os.path.abspath(sys.argv[1]))
                 self.loadFile(sys.argv[1])
 
-        # Register GeriMap
-        gm = [(0, 0, 0), (.15, .15, .5), (.3, .15, .75),
-              (.6, .2, .50), (1, .25, .15), (.9, .5, 0),
-              (.9, .75, .1), (.9, .9, .5), (1, 1, 1)]
-        gerimap = LinearSegmentedColormap.from_list('GeriMap', gm)
-        gerimap_r = LinearSegmentedColormap.from_list('GeriMap_r', gm[::-1])
-        plt.register_cmap(cmap=gerimap)
-        plt.register_cmap(cmap=gerimap_r)
-
         self.ui.cbColormap.setCurrentIndex(1)
 
     def bindEvents(self):
@@ -107,6 +98,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.lblIntensity.setText(str(self.ui.sliderIntensity.value()*bim)+'%')
         intmax = (self.ui.sliderIntensity.value() / 100.0) * bim
         self.plotWindow.image.changeIntensity(intmax, relative=True)
+        self.plotWindow.syntheticImageUpdated()
 
     def loadFile(self, filename):
         self.ui.txtFilename.setText(filename)
@@ -167,8 +159,10 @@ class MainWindow(QtWidgets.QMainWindow):
         cmname = self.ui.cbColormap.currentText()
         if self.ui.cbInvert.isChecked():
             self.plotWindow.image.setColormap(cmname+'_r')
+            self.plotWindow.syntheticImageUpdated(True)
         else:
             self.plotWindow.image.setColormap(cmname)
+            self.plotWindow.syntheticImageUpdated(True)
 
     def setWallOverlay(self):
         self.vesselDialog.show()
@@ -182,12 +176,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plotWindow.image.toggleColorbar(self.ui.cbColorbar.isChecked())
         self.plotWindow.image.toggleColorbarRelative(self.ui.cbRelativeColorbar.isChecked())
 
+        if self.ui.cbColorbar.isChecked():
+            self.plotWindow.image.plotColorbar()
+        else:
+            self.plotWindow.image.removeColorbar()
+
+        self.plotWindow.syntheticImageUpdated()
+
     def toggleLogarithmic(self):
         if self.ui.cbPlotType.currentIndex() == 1:
             self.plotWindow.image.toggleLogarithmic(True)
         else:
             self.plotWindow.image.toggleLogarithmic(False)
 
+        self.plotWindow.syntheticImageUpdated(True)
+
     def vesselUpdated(self, status):
         self.plotWindow.image.setOverlays(status)
+        self.plotWindow.image.plotOverlays()
+        self.plotWindow.syntheticImageUpdated()
 
