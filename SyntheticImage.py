@@ -7,20 +7,21 @@
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 
 class SyntheticImage:
     
-    def __init__(self):
+    def __init__(self, figure=None, canvas=None):
         # PROPERTIES
-        self.brightImageModifier = 0
+        self.canvas = canvas
         self.captions = []
-        self.captionFontSize = 12
         self.colorbar = False
         self.colorbarRelative = True
         self.colormapName = 'GeriMap'
         self.detectorDirection = None
         self.detectorPosition = None
         self.detectorVisang = None
+        self.figure = figure
         self.imageData = None
         self.imageIntensityMax = 1      # Ceiling of colormap
         self.logarithmic = False
@@ -37,28 +38,41 @@ class SyntheticImage:
         self.wall_rmin = None
 
         # Internal properties
-        self._imageMax = 0          # Max intensity of image
+        self._fluxOverlayHandles = []   # Matplotlib handles to flux overlays
+        self._imageMax = 0              # Max intensity of image
+        self._separatrixOverlayHandle = None
+        self._wallOverlayHandle = None
+
+        if self.figure is None:
+            self.figure = Figure(facecolor='black')
+            if self.canvas is not None:
+                raise ValueError("Canvas set, but no figure given. If no figure is given, no canvas may be given.")
+        if self.canvas is None:
+            self.canvas = FigureCanvas(self.figure)
+
+        self.axes = None
 
     #####################################################
     #
     # GETTERS
     #
     #####################################################
+    def getImageMax(self): return self._imageMax
 
     #####################################################
     #
     # SETTERS
     #
     #####################################################
-    def setCaptions(self, captions, fontsize=12): self.captions, self.captionFontSize = captions, fontsize
+    def setCaptions(self, captions): self.captions = captions
     def setColormap(self, cmname): self.colormapName = cmname
     def setDetector(self, direction, position, visionangle): self.detectorDirection, self.detectorPosition, self.detectorVisang = direction, position, visionangle
     def setFluxSurfaces(self, flux): self.flux = flux
     def setImage(self, image): self.imageData = image
+    def setOverlays(self, overlays): self.overlays = overlays
     def setSeparatrix(self, separatrix): self.separatrix = separatrix
     def setWall(self, wall): self.wall, self.wall_rmax, self.wall_rmin = wall, np.amax(wall[0,:]), np.amin(wall[0,:])
 
-    def toggleBrightImage(self, imageIsBright): self.brightImageModifier = imageIsBright
     def toggleColorbar(self, hasColorbar): self.colorbar = hasColorbar
     def toggleColorbarRelative(self, hasColorbarRelative): self.colorbarRelative = hasColorbarRelative
     def toggleLogarithmic(self, log): self.logarithmic = log
@@ -68,41 +82,49 @@ class SyntheticImage:
     # PUBLIC METHODS
     #
     #####################################################
-    def assembleImage(self, ax, fig):
+    def assembleImage(self):
         """
         Plot a SOFT image, applying all settings
         given to this SyntheticImage object. This means
         any overlays, colorbars and captions will be plotted.
         """
+        self.figure.clear()
+        self.axes = self.figure.add_subplot(111)
+
         # Plot image
-        self.plotImage(ax)
+        self.plotImage()
 
         # Plot overlays
-        self.plotOverlays(ax)
+        self.plotOverlays()
 
         # Add colorbar
         if self.colorbar:
-            self.plotColorbar(ax, fig)
+            self.plotColorbar()
 
         # Add captions
-        self.plotCaptions(ax)
+        self.plotCaptions()
 
-    def changeIntensity(self, maxIntensity):
+    def changeIntensity(self, maxIntensity, relative=False):
         """
         Change the intensity of an already plotted image
         """
-        if self.image is None:
+        if self._image is None:
             raise ValueError("No image has been plotted, so there is no image to change intensity for.")
 
-        self.imageIntensityMax = maxIntensity
-        intmax = maxIntensity
-        zerolevel = 0
+        if relative:
+            intmax = maxIntensity * self._imageMax
+            self.imageIntensityMax = intmax
+        else:
+            self.imageIntensityMax = maxIntensity
+            intmax = maxIntensity
 
+        zerolevel = 0
         if self.logarithmic:
             intmax = np.log10(intmax)
             zerolevel = intmax - 40
 
-        self.image.set_clim(vmin=zerolevel, vmax=intmax)
+        self._image.set_clim(vmin=zerolevel, vmax=intmax)
+        #self.canvas.draw_idle()
 
     def loadImageFile(self, filename):
         """
@@ -153,23 +175,26 @@ class SyntheticImage:
         plt.register_cmap(cmap=gerimap)
         plt.register_cmap(cmap=gerimap_r)
 
+    def savePlot(self, filename):
+        pass
+
     #####################################################
     #
     # SEMI-PUBLIC PLOT ROUTINES
     #
     #####################################################
-    def plotCaptions(self, ax):
-        for i in range(0, len(ax.texts)):
-            ax.texts.remove(ax.texts[0])
+    def plotCaptions(self):
+        for i in range(0, len(self.axes.texts)):
+            self.axes.texts.remove(self.axes.texts[0])
 
         for item in self.captions:
             X, Y = float(item[0]), float(item[1])
             fontsize = int(item[2])
             caption = item[3]
 
-            ax.text(X, Y, caption, color='white', fontsize=fontsize)
+            self.axes.text(X, Y, caption, color='white', fontsize=fontsize)
 
-    def plotColorbar(self, ax, fig):
+    def plotColorbar(self):
         """
         Add a colorbar to the axes 'ax' of figure 'fig'.
         Respects the 'colorbarRelative' setting and uses percentage
@@ -177,13 +202,13 @@ class SyntheticImage:
         """
         if self.colorbarRelative:
             mx = self.imageIntensityMax
-            self._colorbar = fig.colorbar(image, shrink=0.8, ticks=[0,mx*0.2,mx*0.4,mx*0.6,mx*0.8,mx])
+            self._colorbar = self.figure.colorbar(image, shrink=0.8, ticks=[0,mx*0.2,mx*0.4,mx*0.6,mx*0.8,mx])
             self._colorbar.ax.set_yticklabels(['0\%','20\%','40\%','60\%','80\%','100\%'])
         else:
-            self._colorbar = fig.colorbar(image, shrink=0.8)
+            self._colorbar = self.figure.colorbar(image, shrink=0.8)
         self._colorbar.ax.tick_params(labelcolor='white', color='white')
 
-    def plotImage(self, ax):
+    def plotImage(self):
         """
         Plots the current SOFT image with the colormap whose
         name is specified in 'colormapName'. Proper extents of
@@ -199,23 +224,43 @@ class SyntheticImage:
         extent = self._getImageExtent()
 
         # Plot image
-        self._image = ax.imshow(imageData, origin='lower', cmap=colormap,
+        self._image = self.axes.imshow(imageData, origin='lower', cmap=colormap,
                           interpolation=None, clim=(intmin, intmax),
                           extent=extent)
-        ax.set_axis_off()
+        self.axes.set_axis_off()
+        print('Drew image')
 
-    def plotOverlays(self, ax):
+    def plotOverlays(self):
         """
         Plot wall/equilibrium overlays as specified in
         the 'overlays' list.
         """
         if self.overlays['wall'] and self.wall is not None:
-            plotOrthogonalCrossSection(ax, self.wall, self.detectorPosition, self.detectorDirection, linewidth=1)
+            plotOrthogonalCrossSection(self.axes, self.wall, self.detectorPosition, self.detectorDirection, linewidth=1)
+        elif self._wallOverlayHandle is not None:
+            self._wallOverlayHandle.remove()
+            self._wallOverlayHandle = None
+
         if self.overlays['separatrix'] and self.separatrix is not None:
-            plotCrossSection(ax, self.wall, self.detectorDirection)
+            plotCrossSection(self.axes, self.wall, self.detectorDirection)
+        elif self._separatrixOverlayHandle is not None:
+            self._separatrixOverlayHandle.remove()
+            self._separatrixOverlayHandle = None
+
         """
-        if self.vesselStatus['cs']['flux']:
-            plotCrossSection(ax, self.wall, self.detectorDirection)
+        if self.vesselStatus['flux']:
+            plotCrossSection(self.axes, self.wall, self.detectorDirection)
+        elif len(self._fluxOverlayHandles) > 0:
+            for fh in self._fluxOverlayHandles:
+                fh.remove()
+            self._fluxOverlayHandles = []
+
+        if self.vesselStatus['topview']:
+            pass
+        elif self._topviewOverlayHandles is not None:
+            for th in self._topviewOverlayHandles:
+                th.remove()
+            self._topviewOverlayHandles = []
         """
 
     #####################################################
@@ -321,7 +366,7 @@ def plotOrthogonalCrossSection(ax, wall, cameraPosition, cameraDirection, plotst
 
     cossin = [np.dot(cameraDirection, [0,1,0]), np.dot(cameraDirection, [1,0,0])]
     nrc, nyc, nzc = _rotateWall(rc, zc, cossin=cossin)
-    plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)
+    return plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)
 
 def plotwall(ax, wall, cameraPosition, cameraDirection, plotstyle='w',
              degreesStart=[0], degreesEnd=[360], spacing=1, linewidth=0.1,
@@ -334,13 +379,15 @@ def plotwall(ax, wall, cameraPosition, cameraDirection, plotstyle='w',
     # Limit the wall to only inner parts
     rc, zc = _limitwall(rc, zc, rlim, zuplim, zlowlim)
 
+    handles = []
     for i in range(len(degreesStart)):
         for degree in range(degreesStart[i], degreesEnd[i], spacing):
             # [1] ROTATE WALL SECTION AROUND ORIGO
             nrc, nyc, nzc = _rotateWall(rc, zc, angle=degree)
 
             # [2] ROTATE, TRANSLATE AND PLOT WALL SECTION AROUND CAMERA
-            plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)
+            h = plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)
+            handles.append(h)
 
 def plotCrossSection(ax, rc, yc, zc, cameraPosition, cameraDirection, plotstyle='w', linewidth=0.1):
     """ Plot a wall cross-section (that is rotated to some toroidal angle in the
@@ -358,5 +405,6 @@ def plotCrossSection(ax, rc, yc, zc, cameraPosition, cameraDirection, plotstyle=
     factorMatrix = np.array([factor,factor,factor])
     projectedVector = factorMatrix * projectedVector
 
-    ax.plot(projectedVector[0,:], projectedVector[1,:], plotstyle, linewidth=linewidth)
+    h, = ax.plot(projectedVector[0,:], projectedVector[1,:], plotstyle, linewidth=linewidth)
+    return h
     

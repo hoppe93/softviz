@@ -26,6 +26,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.detectorDirection = None
         self.detectorVisang = None
         self.wall = None
+        self.separatrix = None
         self.imageMax = 0
         self.brightImageModifier = 1
 
@@ -69,12 +70,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def bindEvents(self):
         self.ui.sliderIntensity.valueChanged.connect(self.intensityChanged)
-        self.ui.cbPlotType.currentIndexChanged.connect(self.refreshImage)
-        self.ui.cbColormap.currentIndexChanged.connect(self.refreshImage)
-        self.ui.cbColorbar.stateChanged.connect(self.refreshImage)
-        self.ui.cbInvert.stateChanged.connect(self.refreshImage)
+        self.ui.cbPlotType.currentIndexChanged.connect(self.toggleLogarithmic)
+        self.ui.cbColormap.currentIndexChanged.connect(self.setColormap)
+        self.ui.cbColorbar.stateChanged.connect(self.toggleColorbar)
+        self.ui.cbInvert.stateChanged.connect(self.setColormap)
         self.ui.cbBrightImage.stateChanged.connect(self.intensityChanged)
-        self.ui.cbRelativeColorbar.stateChanged.connect(self.refreshImage)
+        self.ui.cbRelativeColorbar.stateChanged.connect(self.toggleColorbar)
         self.ui.cbTopview.stateChanged.connect(self.showTopview)
         self.ui.btnOpen.clicked.connect(self.openFile)
         self.ui.btnReload.clicked.connect(self.reloadFile)
@@ -86,7 +87,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.vesselDialog.overlayChanged.connect(self.vesselUpdated)
 
     def captionsUpdated(self, captions):
-        self.plotWindow.setCaptions(captions)
+        self.plotWindow.image.setCaptions(captions)
+        self.plotWindow.image.plotCaptions()
 
     def closeEvent(self, event):
         self.exit()
@@ -97,90 +99,31 @@ class MainWindow(QtWidgets.QMainWindow):
         self.vesselDialog.close()
         self.close()
 
-    def getImage(self):
-        img = self.image
-        imgmax = self.imageMax
-        zerolevel = 0
-
-        if self.ui.cbPlotType.currentIndex() == 1:  # Normal
-            img = np.log10(img)
-            imgmax = np.log10(imgmax)
-            zerolevel = imgmax - 40
-
-            for i in range(0, len(img)-1):
-                for j in range(0, len(img[i])-1):
-                    if np.isinf(img[i][j]) or np.isnan(img[i][j]):
-                        img[i][j] = zerolevel
-
-        return img, imgmax, zerolevel
-
     def intensityChanged(self):
         bim = 1
         if self.ui.cbBrightImage.isChecked():
             bim = 1.0 / 100.0
 
         self.ui.lblIntensity.setText(str(self.ui.sliderIntensity.value()*bim)+'%')
-
-        imgmax = self.imageMax
-        zerolevel = 0
-        if self.ui.cbPlotType.currentIndex() == 1:
-            imgmax = np.log10(imgmax)
-            zerolevel = imgmax - 40
-
-        intmax = imgmax * (self.ui.sliderIntensity.value() / 100.0) * bim
-        self.plotWindow.set_colormax(zerolevel, intmax, relativeColorbar=self.ui.cbRelativeColorbar.isChecked())
+        intmax = (self.ui.sliderIntensity.value() / 100.0) * bim
+        self.plotWindow.image.changeIntensity(intmax, relative=True)
 
     def loadFile(self, filename):
         self.ui.txtFilename.setText(filename)
         self.filename = filename
-        self.readfile(filename)
-        self.imageMax = np.amax(self.image)
 
-        if np.amax(np.amax(np.abs(self.image))) == 0:
-            self.statusBar().showMessage("Image is empty!")
-        else:
-            #self.statusBar().showMessage("Successfully loaded "+filename, 3000)
-            self.statusBar().showMessage("Max value = "+str(self.imageMax))
+        try:
+            self.plotWindow.image.loadImageFile(filename)
+            imageMax = self.plotWindow.image.getImageMax()
 
-        self.refreshImage()
+            if imageMax == 0:
+                self.statusBar().showMessage("Image is empty!")
+            else:
+                #self.statusBar().showMessage("Successfully loaded "+filename, 3000)
+                self.statusBar().showMessage("Max value = "+str(imageMax))
 
-    def openFile(self):
-        filename, _ = QFileDialog.getOpenFileName(parent=self, caption="Open SOFT image file", filter="SOFT Output (*.dat *.h5 *.hdf5 *.mat *.sdt);;All files (*.*)")
-
-        if filename:
-            self.loadFile(filename)
-
-    def readfile(self, filename):
-        # DAT-file: for legacy support
-        if filename.endswith('.dat') or filename.endswith('.topview'):
-            self.image = np.genfromtxt(filename)
-            self.ui.cbTopview.setEnabled(False)
-        elif filename.endswith('.mat'):
-            try:
-                matfile = scipy.io.loadmat(filename)
-
-                self.image = np.transpose(matfile['image'])
-                #self.image = matfile['image']
-                self.detectorPosition = matfile['detectorPosition'][0]
-                self.detectorDirection = matfile['detectorDirection'][0]
-                self.detectorVisang = matfile['detectorVisang'][0]
-                self.wall = matfile['wall']
-            except NotImplementedError:
-                matfile = h5py.File(filename)
-
-                self.image = np.transpose(matfile['image'][:,:])
-                self.detectorPosition = matfile['detectorPosition'][:,0]
-                self.detectorDirection = matfile['detectorDirection'][:,0]
-                #self.detectorPosition = np.array([0,-3,0])
-                #self.detectorDirection = np.array([0,1,0])
-                self.detectorVisang = matfile['detectorVisang'][0,0]
-                self.wall = matfile['wall'][:,:]
-
-            self.wall_rmax = np.amax(self.wall[0,:])
-            self.wall_rmin = np.amin(self.wall[0,:])
-            self.plotWindow.setWall(self.wall)
-            self.plotWindow.setCamera(self.detectorPosition, self.detectorDirection, self.detectorVisang)
-        else:
+            self.refreshImage()
+        except NotImplementedError as e:
             print('ERROR: Unrecognized image format. Unable to load file.')
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
@@ -189,33 +132,17 @@ class MainWindow(QtWidgets.QMainWindow):
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
 
+    def openFile(self):
+        filename, _ = QFileDialog.getOpenFileName(parent=self, caption="Open SOFT image file", filter="SOFT Output (*.dat *.h5 *.hdf5 *.mat *.sdt);;All files (*.*)")
+
+        if filename:
+            self.loadFile(filename)
+
     def refreshImage(self):
-        img, imgmax, zerolevel = self.getImage()
-        if img is None:
-            return
-
-        bim = 1
-        if self.ui.cbBrightImage.isChecked():
-            bim = 1.0 / 100.0
-
-        intmax = imgmax * (self.ui.sliderIntensity.value() / 100.0) * bim
-
-        # Select colormap
-        cmname = self.ui.cbColormap.currentText()
-        # Show colorbar?
-        cbar = self.ui.cbColorbar.isChecked()
-
-        # Invert colormap?
-        if self.ui.cbInvert.isChecked():
-            cmname = cmname + '_r'
-
         if not self.plotWindow.isVisible():
             self.plotWindow.show()
 
-        self.plotWindow.plotImage(img, cmname=cmname,
-                                  intmin=zerolevel, intmax=intmax,
-                                  colorbar=cbar,
-                                  relativeColorbar=self.ui.cbRelativeColorbar.isChecked())
+        self.plotWindow.plotImage()
 
     def reloadFile(self):
         if self.filename is "":
@@ -231,31 +158,36 @@ class MainWindow(QtWidgets.QMainWindow):
         filename, _ = QFileDialog.getSaveFileName(self, caption='Save SOFT image', filter='Encapsulated Post-Script (*.eps);;Portable Network Graphics (*.png);;Portable Document Format (*.pdf);;Scalable Vector Graphics (*.svg)')
 
         if filename:
-            img, imgmax, zerolevel = self.getImage()
-            intmax = imgmax * (self.ui.sliderIntensity.value() / 100.0)
-            cmname = self.ui.cbColormap.currentText()
-            cbar = self.ui.cbColorbar.isChecked()
-
-            if self.ui.cbBrightImage.isChecked():
-                intmax = intmax / 100.0
-
-            # Invert colormap?
-            if self.ui.cbInvert.isChecked():
-                cmname = cmname + '_r'
-
-            self.plotWindow.savePlot(img, filename, cmname=cmname, intmin=zerolevel,
-                                     intmax=intmax, colorbar=cbar)
+            self.plotWindow.image.savePlot(filename)
 
     def setCaption(self):
         self.captionDialog.show()
+
+    def setColormap(self):
+        cmname = self.ui.cbColormap.currentText()
+        if self.ui.cbInvert.isChecked():
+            self.plotWindow.image.setColormap(cmname+'_r')
+        else:
+            self.plotWindow.image.setColormap(cmname)
 
     def setWallOverlay(self):
         self.vesselDialog.show()
 
     def showTopview(self):
-        if self.wall == None: return
-        self.plotWindow.setTopview(rmin=self.wall_rmin, rmax=self.wall_rmax, show=self.ui.cbTopview.isChecked())
+        #if self.wall == None: return
+        #self.plotWindow.setTopview(rmin=self.wall_rmin, rmax=self.wall_rmax, show=self.ui.cbTopview.isChecked())
+        pass
+    
+    def toggleColorbar(self):
+        self.plotWindow.image.toggleColorbar(self.ui.cbColorbar.isChecked())
+        self.plotWindow.image.toggleColorbarRelative(self.ui.cbRelativeColorbar.isChecked())
+
+    def toggleLogarithmic(self):
+        if self.ui.cbPlotType.currentIndex() == 1:
+            self.plotWindow.image.toggleLogarithmic(True)
+        else:
+            self.plotWindow.image.toggleLogarithmic(False)
 
     def vesselUpdated(self, status):
-        self.plotWindow.setVesselPlot(status)
+        self.plotWindow.image.setOverlays(status)
 
