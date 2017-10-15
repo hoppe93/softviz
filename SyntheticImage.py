@@ -155,7 +155,12 @@ class SyntheticImage:
                 self.detectorPosition = matfile['detectorPosition'][0]
                 self.detectorDirection = matfile['detectorDirection'][0]
                 self.detectorVisang = matfile['detectorVisang'][0]
-                self.wall = matfile['wall']
+
+                try: self.wall = matfile['wall']
+                except KeyError: pass
+
+                try: self.separatrix = matfile['separatrix']
+                except KeyError: pass
             # Otherwise, load modern (HDF5-based) MAT-file
             except NotImplementedError:
                 matfile = h5py.File(filename)
@@ -164,7 +169,12 @@ class SyntheticImage:
                 self.detectorPosition = matfile['detectorPosition'][:,0]
                 self.detectorDirection = matfile['detectorDirection'][:,0]
                 self.detectorVisang = matfile['detectorVisang'][0,0]
-                self.wall = matfile['wall'][:,:]
+
+                try: self.wall = matfile['wall'][:,:]
+                except KeyError: pass
+
+                try: self.separatrix = matfile['separatrix'][:,:]
+                except KeyError: pass
 
             self.wall_rmax = np.amax(self.wall[:,0])
             self.wall_rmin = np.amin(self.wall[:,0])
@@ -314,7 +324,7 @@ class SyntheticImage:
 
         self.overlayWallCrossSection = False
 
-    def plotSeparatrixCrossSection(self):
+    def plotSeparatrix(self):
         """
         Plots a separatrix ovelay over the image.
         Also toggles the setting so that 'assembleImage' will
@@ -324,7 +334,7 @@ class SyntheticImage:
             raise ValueError("No separatrix data has been provided!")
 
         self.removeSeparatrix()
-        self._wallSeparatrixHandle = plotOrthogonalCrossSection(self.axes, self.separatrix, self.detectorPosition, self.detectorDirection, linewidth=1)
+        self._separatrixOverlayHandle = plotOrthogonalCrossSection(self.axes, self.separatrix, self.detectorPosition, self.detectorDirection, linewidth=1)
         self.overlaySeparatrix = True
 
     def removeSeparatrix(self):
@@ -332,9 +342,9 @@ class SyntheticImage:
         Removes any separatrix overlay plotted
         over the image.
         """
-        if self._wallSeparatrixHandle is not None:
-            self._wallSeparatrixHandle.remove()
-            self._wallSeparatrixHandle = None
+        if self._separatrixOverlayHandle is not None:
+            self._separatrixOverlayHandle.remove()
+            self._separatrixOverlayHandle = None
         self.overlaySeparatrix = False
 
     def plotTopview(self):
