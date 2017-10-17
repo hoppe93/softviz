@@ -7,7 +7,7 @@
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
+import scipy.io
 from matplotlib.colors import LinearSegmentedColormap
 
 class SyntheticImage:
@@ -45,11 +45,11 @@ class SyntheticImage:
         self._wallCrossSectionOverlayHandle = None
 
         if self.figure is None:
-            self.figure = Figure(facecolor='black')
+            self.figure = plt.gca().figure
             if self.canvas is not None:
                 raise ValueError("Canvas set, but no figure given. If no figure is given, no canvas may be given.")
         if self.canvas is None:
-            self.canvas = FigureCanvas(self.figure)
+            self.canvas = self.figure.canvas
 
         self.axes = None
 
