@@ -23,9 +23,11 @@ class SyntheticImage:
         self.detectorPosition = None
         self.detectorVisang = None
         self.figure = figure
+        #self.flux = {'R': [], 'Z': [], 'lengths': [], 'radii': []}
+        self.flux = None
         self.overlayWallCrossSection = False# Show wall cross-section overlay?
         self.overlaySeparatrix = False      # Show separatrix overlay?
-        self.overlayFluxOverlay = False     # Show flux surface overlay?
+        self.overlayFluxSurfaces = False     # Show flux surface overlay?
         self.overlayTopview = False         # Show topview overlay?
         self.imageData = None
         self.imageIntensityMax = 1      # Ceiling of colormap
@@ -279,10 +281,14 @@ class SyntheticImage:
         Plot wall/equilibrium overlays as specified in
         the 'overlays' list.
         """
-        if self.overlayWallCrossSection:
-            self.plotWallCrossSection()
+        if self.overlayFluxSurfaces:
+            self.plotFluxSurfaces()
         if self.overlaySeparatrix:
             self.plotSeparatrix()
+        if self.overlayTopview:
+            self.plotTopview()
+        if self.overlayWallCrossSection:
+            self.plotWallCrossSection()
 
         """
         if self.vesselStatus['flux']:
@@ -299,6 +305,32 @@ class SyntheticImage:
                 th.remove()
             self._topviewOverlayHandles = []
         """
+
+    def plotFluxSurfaces(self):
+        if self.flux is None:
+            raise ValueError("No flux surfaces have been provided!")
+
+        self.removeFluxSurfaces()
+        self._fluxOverlayHandles = []
+
+        R = self.flux['R']
+        Z = self.flux['Z']
+        lengths = self.flux['lengths']
+        for i in range(0, len(lengths)):
+            rz = np.transpose(np.array([R[i,:lengths[i]], Z[i,:lengths[i]]]))
+            h = plotOrthogonalCrossSection(self.axes, rz, self.detectorPosition, self.detectorDirection, linewidth=1)
+            self._fluxOverlayHandles.append(h)
+
+        self.overlayFluxSurfaces = True
+
+    def removeFluxSurfaces(self):
+        if self._fluxOverlayHandles is not None:
+            for h in self._fluxOverlayHandles:
+                h.remove()
+
+            self._fluxOverlayHandles = None
+
+        self.overlayFluxSurfaces = False
 
     def plotWallCrossSection(self):
         """
