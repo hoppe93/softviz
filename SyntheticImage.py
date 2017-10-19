@@ -215,7 +215,7 @@ class SyntheticImage:
         self.axes.get_xaxis().set_major_locator(matplotlib.ticker.NullLocator())
         self.axes.get_yaxis().set_major_locator(matplotlib.ticker.NullLocator())
 
-        self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0)
+        self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0, facecolor='black')
 
     def update(self):
         self.canvas.draw()
@@ -333,7 +333,7 @@ class SyntheticImage:
 
         self.overlayDetectorNormal = False
 
-    def plotFluxSurfaces(self, color='w', linewidth=1):
+    def plotFluxSurfaces(self, plotstyle='w', linewidth=1):
         if self.flux is None:
             raise ValueError("No flux surfaces have been provided!")
 
@@ -345,7 +345,7 @@ class SyntheticImage:
         lengths = self.flux['lengths']
         for i in range(0, len(lengths)):
             rz = np.transpose(np.array([R[i,:lengths[i]], Z[i,:lengths[i]]]))
-            h = plotOrthogonalCrossSection(self.axes, rz, self.detectorPosition, self.detectorDirection, linewidth=linewidth, color=color)
+            h = plotOrthogonalCrossSection(self.axes, rz, self.detectorPosition, self.detectorDirection, linewidth=linewidth, plotstyle=plotstyle)
             self._fluxOverlayHandles.append(h)
 
         self.overlayFluxSurfaces = True
@@ -359,7 +359,7 @@ class SyntheticImage:
 
         self.overlayFluxSurfaces = False
 
-    def plotWallCrossSection(self, color='w', linewidth=1):
+    def plotWallCrossSection(self, plotstyle='w', linewidth=1):
         """
         Plots a wall cross section ovelay over the image.
         Also toggles the setting so that 'assembleImage' will
@@ -369,7 +369,7 @@ class SyntheticImage:
             raise ValueError("No wall data has been provided!")
 
         self.removeWallCrossSection()
-        self._wallCrossSectionOverlayHandle = plotOrthogonalCrossSection(self.axes, self.wall, self.detectorPosition, self.detectorDirection, linewidth=linewidth, color=color)
+        self._wallCrossSectionOverlayHandle = plotOrthogonalCrossSection(self.axes, self.wall, self.detectorPosition, self.detectorDirection, linewidth=linewidth, plotstyle=plotstyle)
         self.overlayWallCrossSection = True
 
     def removeWallCrossSection(self):
@@ -383,7 +383,7 @@ class SyntheticImage:
 
         self.overlayWallCrossSection = False
 
-    def plotSeparatrix(self, color='w', linewidth=1):
+    def plotSeparatrix(self, plotstyle='w', linewidth=1):
         """
         Plots a separatrix ovelay over the image.
         Also toggles the setting so that 'assembleImage' will
@@ -393,7 +393,7 @@ class SyntheticImage:
             raise ValueError("No separatrix data has been provided!")
 
         self.removeSeparatrix()
-        self._separatrixOverlayHandle = plotOrthogonalCrossSection(self.axes, self.separatrix, self.detectorPosition, self.detectorDirection, linewidth=linewidth)
+        self._separatrixOverlayHandle = plotOrthogonalCrossSection(self.axes, self.separatrix, self.detectorPosition, self.detectorDirection, linewidth=linewidth, plotstyle=plotstyle)
         self.overlaySeparatrix = True
 
     def removeSeparatrix(self):
