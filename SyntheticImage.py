@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io
 from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.ticker
 
 class SyntheticImage:
     
@@ -27,12 +28,13 @@ class SyntheticImage:
         self.flux = None
         self.overlayWallCrossSection = False# Show wall cross-section overlay?
         self.overlaySeparatrix = False      # Show separatrix overlay?
+        self.overlayDetectorNormal = False
         self.overlayFluxSurfaces = False     # Show flux surface overlay?
         self.overlayTopview = False         # Show topview overlay?
+        self.overlayTopviewOrthogonalCrossSection  = False
         self.imageData = None
         self.imageIntensityMax = 1      # Ceiling of colormap
         self.logarithmic = False
-        self.overlays =[]
         self.separatrix = None
         self.wall = None
         self.wall_rmax = None
@@ -40,14 +42,17 @@ class SyntheticImage:
 
         # Internal properties
         self._colorbar = None
+        self._detectorNormalHandle = None
         self._fluxOverlayHandles = []   # Matplotlib handles to flux overlays
         self._imageMax = 0              # Max intensity of image
         self._separatrixOverlayHandle = None
+        self._topviewOCSHandle = None
         self._topviewOverlayHandles = None
         self._wallCrossSectionOverlayHandle = None
 
         if self.figure is None:
             self.figure = plt.gca().figure
+            self.figure.patch.set_facecolor('black')
             if self.canvas is not None:
                 raise ValueError("Canvas set, but no figure given. If no figure is given, no canvas may be given.")
         if self.canvas is None:
@@ -79,7 +84,6 @@ class SyntheticImage:
     def setDetector(self, direction, position, visionangle): self.detectorDirection, self.detectorPosition, self.detectorVisang = direction, position, visionangle
     def setFluxSurfaces(self, flux): self.flux = flux
     def setImage(self, image): self.imageData = image
-    def setOverlays(self, overlays): self.overlays = overlays
     def setSeparatrix(self, separatrix): self.separatrix = separatrix
     def setWall(self, wall): self.wall, self.wall_rmax, self.wall_rmin = wall, np.amax(wall[0,:]), np.amin(wall[0,:])
 
@@ -200,7 +204,18 @@ class SyntheticImage:
         plt.register_cmap(cmap=gerimap_r)
 
     def savePlot(self, filename):
-        pass
+        #self.axes.margins(0,0)
+        #self.axes.get_xaxis().set_visible(False)
+        #self.axes.get_yaxis().set_visible(False)
+        #self.axes.get_xaxis().set_major_locator(matplotlib.ticker.NullLocator())
+        #self.axes.get_yaxis().set_major_locator(matplotlib.ticker.NullLocator())
+        self.axes.set_axis_off()
+        self.figure.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+        #self.axes.margins(0,0)
+        self.axes.get_xaxis().set_major_locator(matplotlib.ticker.NullLocator())
+        self.axes.get_yaxis().set_major_locator(matplotlib.ticker.NullLocator())
+
+        self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0)
 
     def update(self):
         self.canvas.draw()
@@ -217,6 +232,8 @@ class SyntheticImage:
         self._colorbar = None
         self._fluxOverlayHandles = []
         self._separatrixOverlayHandle = None
+        self._topviewOverlayHandles = None
+        self._topviewOCSHandle = None
         self._wallOverlayHandle = None
 
     def plotCaptions(self):
@@ -287,26 +304,36 @@ class SyntheticImage:
             self.plotSeparatrix()
         if self.overlayTopview:
             self.plotTopview()
+        if self.overlayTopviewOrthogonalCrossSection:
+            self.plotTopviewOrthogonalCrossSection()
         if self.overlayWallCrossSection:
             self.plotWallCrossSection()
 
+    def plotDetectorNormal(self, color='w', arrowheadsize=1, arrowheadlength=1, arrowtaillength=1, linewidth=2):
         """
-        if self.vesselStatus['flux']:
-            plotCrossSection(self.axes, self.wall, self.detectorDirection)
-        elif len(self._fluxOverlayHandles) > 0:
-            for fh in self._fluxOverlayHandles:
-                fh.remove()
-            self._fluxOverlayHandles = []
-
-        if self.vesselStatus['topview']:
-            pass
-        elif self._topviewOverlayHandles is not None:
-            for th in self._topviewOverlayHandles:
-                th.remove()
-            self._topviewOverlayHandles = []
+        Draw an arrow in the direction of the
+        camera's viewing direction (camera plane
+        normal) in the topview.
         """
+        self.removeDetectorNormal()
 
-    def plotFluxSurfaces(self):
+        extent = self._getImageExtent()
+        x, y = self.detectorPosition[0], self.detectorPosition[1]
+        dx, dy = self.detectorDirection[0], self.detectorDirection[1]
+        dr = (self.wall_rmax-self.wall_rmin) * arrowtaillength
+        normf = self.wall_rmax / extent[1]
+        self._detectorNormalHandle = self.axes.arrow(x/normf, y/normf, dx*dr/normf, dy*dr/normf, color=color, linewidth=linewidth, head_width=dr*0.02*arrowheadsize, head_length=dr*0.02*arrowheadlength)
+
+        self.overlayDetectorNormal = True
+
+    def removeDetectorNormal(self):
+        if self._detectorNormalHandle is not None:
+            self._detectorNormalHandle.remove()
+            self._detectorNormalHandle = None
+
+        self.overlayDetectorNormal = False
+
+    def plotFluxSurfaces(self, color='w', linewidth=1):
         if self.flux is None:
             raise ValueError("No flux surfaces have been provided!")
 
@@ -318,7 +345,7 @@ class SyntheticImage:
         lengths = self.flux['lengths']
         for i in range(0, len(lengths)):
             rz = np.transpose(np.array([R[i,:lengths[i]], Z[i,:lengths[i]]]))
-            h = plotOrthogonalCrossSection(self.axes, rz, self.detectorPosition, self.detectorDirection, linewidth=1)
+            h = plotOrthogonalCrossSection(self.axes, rz, self.detectorPosition, self.detectorDirection, linewidth=linewidth, color=color)
             self._fluxOverlayHandles.append(h)
 
         self.overlayFluxSurfaces = True
@@ -332,7 +359,7 @@ class SyntheticImage:
 
         self.overlayFluxSurfaces = False
 
-    def plotWallCrossSection(self):
+    def plotWallCrossSection(self, color='w', linewidth=1):
         """
         Plots a wall cross section ovelay over the image.
         Also toggles the setting so that 'assembleImage' will
@@ -342,7 +369,7 @@ class SyntheticImage:
             raise ValueError("No wall data has been provided!")
 
         self.removeWallCrossSection()
-        self._wallCrossSectionOverlayHandle = plotOrthogonalCrossSection(self.axes, self.wall, self.detectorPosition, self.detectorDirection, linewidth=1)
+        self._wallCrossSectionOverlayHandle = plotOrthogonalCrossSection(self.axes, self.wall, self.detectorPosition, self.detectorDirection, linewidth=linewidth, color=color)
         self.overlayWallCrossSection = True
 
     def removeWallCrossSection(self):
@@ -356,7 +383,7 @@ class SyntheticImage:
 
         self.overlayWallCrossSection = False
 
-    def plotSeparatrix(self):
+    def plotSeparatrix(self, color='w', linewidth=1):
         """
         Plots a separatrix ovelay over the image.
         Also toggles the setting so that 'assembleImage' will
@@ -366,7 +393,7 @@ class SyntheticImage:
             raise ValueError("No separatrix data has been provided!")
 
         self.removeSeparatrix()
-        self._separatrixOverlayHandle = plotOrthogonalCrossSection(self.axes, self.separatrix, self.detectorPosition, self.detectorDirection, linewidth=1)
+        self._separatrixOverlayHandle = plotOrthogonalCrossSection(self.axes, self.separatrix, self.detectorPosition, self.detectorDirection, linewidth=linewidth)
         self.overlaySeparatrix = True
 
     def removeSeparatrix(self):
@@ -379,20 +406,24 @@ class SyntheticImage:
             self._separatrixOverlayHandle = None
         self.overlaySeparatrix = False
 
-    def plotTopview(self):
+    def plotTopview(self, color='w', linewidth=1):
         """
         Plots a topview ovelay over the image.
         Also toggles the setting so that 'assembleImage' will
         automatically include the overlay.
         """
+        if self.wall is None:
+            raise ValueError("No wall data has been specified, which is required for the topview")
+
+        self.removeTopview()
         t = np.linspace(0, 2*np.pi)
         extent = self._getImageExtent()
 
         rmaj = extent[1]
         rmin = rmaj * (self.wall_rmin/self.wall_rmax)
 
-        h1 = self.axes.plot(rmaj * np.cos(t), rmaj * np.sin(t), 'w', linewidth=1)[0]
-        h2 = self.axes.plot(rmin * np.cos(t), rmin * np.sin(t), 'w', linewidth=1)[0]
+        h1 = self.axes.plot(rmaj * np.cos(t), rmaj * np.sin(t), color, linewidth=linewidth)[0]
+        h2 = self.axes.plot(rmin * np.cos(t), rmin * np.sin(t), color, linewidth=linewidth)[0]
 
         self._topviewOverlayHandles = (h1, h2)
         self.overlayTopview = True
@@ -409,6 +440,37 @@ class SyntheticImage:
 
         self._topviewOverlayHandles = None
         self.overlayTopview = False
+
+    def plotTopviewOrthogonalCrossSection(self, color='w', linewidth=1):
+        """
+        Plot the toroidal section corresponding to the
+        cross-section that is orthogonal to the camera
+        view (in topview).
+        """
+
+        if self.wall is None:
+            raise ValueError("No wall data has been specified, which is required for the topview")
+
+        self.removeTopviewOrthogonalCrossSection()
+
+        # Rotate points along with camera
+        cossin = [np.dot(self.detectorDirection, [0,1,0]), np.dot(self.detectorDirection, [1,0,0])]
+        extent = self._getImageExtent()
+        l1 = extent[1]
+        l2 = extent[1] * (self.wall_rmin/self.wall_rmax)
+
+        self._topviewOCSHandle = self.axes.plot([l1*cossin[0], l2*cossin[0]], [-l1*cossin[1], -l2*cossin[1]], color, linewidth=linewidth)
+
+    def removeTopviewOrthogonalCrossSection(self):
+        """
+        Removes the orthogonal cross-section line
+        of a topview plot.
+        """
+        if self._topviewOCSHandle is not None:
+            self._topviewOCSHandle.remove()
+            self._topviewOCSHandle = None
+
+        self.overlayTopviewOrthogonalCrossSection = True
 
     #####################################################
     #
