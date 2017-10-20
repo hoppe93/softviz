@@ -160,13 +160,14 @@ class SyntheticImage:
                 self.imageData = np.transpose(matfile['image'])
                 self.detectorPosition = matfile['detectorPosition'][0]
                 self.detectorDirection = matfile['detectorDirection'][0]
-                self.detectorVisang = matfile['detectorVisang'][0]
+                self.detectorVisang = matfile['detectorVisang'][0][0]
 
-                try: self.wall = matfile['wall']
+                try: self.wall = np.transpose(matfile['wall'])
                 except KeyError: pass
 
                 try: self.separatrix = matfile['separatrix']
                 except KeyError: pass
+
             # Otherwise, load modern (HDF5-based) MAT-file
             except NotImplementedError:
                 matfile = h5py.File(filename)
@@ -184,6 +185,11 @@ class SyntheticImage:
 
             self.wall_rmax = np.amax(self.wall[:,0])
             self.wall_rmin = np.amin(self.wall[:,0])
+
+            #print(self.wall[:,0])
+            #print(self.detectorPosition)
+            #print(self.detectorDirection)
+            #print(self.detectorVisang)
         else:
             raise NotImplementedError("Unrecognized image format. Unable to load file.")
 
@@ -509,7 +515,7 @@ class SyntheticImage:
         extent = np.array([-1,1,-1,1]) / 2
         
         if self.detectorVisang is not None:
-            extent = extent * np.tan(self.detectorVisang/2)
+            extent = extent * np.sqrt(2) * np.tan(self.detectorVisang/2)
 
         return extent
 
