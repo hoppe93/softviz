@@ -461,6 +461,8 @@ class SyntheticImage:
 
         # Rotate points along with camera
         cossin = [np.dot(self.detectorDirection, [0,1,0]), np.dot(self.detectorDirection, [1,0,0])]
+        cossin = cossin / np.sqrt(cossin[0]**2 + cossin[1]**2)  # Normalize
+
         extent = self._getImageExtent()
         l1 = extent[1]
         l2 = extent[1] * (self.wall_rmin/self.wall_rmax)
@@ -580,6 +582,7 @@ def plotOrthogonalCrossSection(ax, wall, cameraPosition, cameraDirection, plotst
     zc = wall[:,1]
 
     cossin = [np.dot(cameraDirection, [0,1,0]), np.dot(cameraDirection, [1,0,0])]
+    cossin = cossin / np.sqrt(cossin[0]**2 + cossin[1]**2)      # Normalize
     nrc, nyc, nzc = _rotateWall(rc, zc, cossin=cossin)
     return plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)
 
