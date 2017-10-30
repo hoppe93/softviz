@@ -106,33 +106,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.txtFilename.setText(filename)
         self.filename = filename
 
-        try:
-            self.plotWindow.image.loadImageFile(filename)
-            imageMax = self.plotWindow.image.getImageMax()
+        self.plotWindow.image.loadImageFile(filename)
+        imageMax = self.plotWindow.image.getImageMax()
 
-            # Enable overlay checkboxes
-            if self.plotWindow.image.hasSeparatrix():
-                self.ui.cbSeparatrix.setEnabled(True)
-            if self.plotWindow.image.hasTopview():
-                self.ui.cbTopview.setEnabled(True)
-            if self.plotWindow.image.hasWall():
-                self.ui.cbWallCross.setEnabled(True)
+        # Enable overlay checkboxes
+        if self.plotWindow.image.hasSeparatrix():
+            self.ui.cbSeparatrix.setEnabled(True)
+        if self.plotWindow.image.hasTopview():
+            self.ui.cbTopview.setEnabled(True)
+        if self.plotWindow.image.hasWall():
+            self.ui.cbWallCross.setEnabled(True)
 
-            if imageMax == 0:
-                self.statusBar().showMessage("Image is empty!")
-            else:
-                #self.statusBar().showMessage("Successfully loaded "+filename, 3000)
-                self.statusBar().showMessage("Max value = "+str(imageMax))
+        if imageMax == 0:
+            self.statusBar().showMessage("Image is empty!")
+        else:
+            #self.statusBar().showMessage("Successfully loaded "+filename, 3000)
+            self.statusBar().showMessage("Max value = "+str(imageMax))
 
-            self.refreshImage()
-        except NotImplementedError as e:
-            print('ERROR: Unrecognized image format. Unable to load file.')
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Critical)
-            msg.setText(e.strerror)
-            msg.setWindowTitle('Error loading file')
-            msg.setStandardButtons(QMessageBox.Ok)
-            msg.exec_()
+        self.refreshImage()
 
     def openFile(self):
         filename, _ = QFileDialog.getOpenFileName(parent=self, caption="Open SOFT image file", filter="SOFT Output (*.dat *.h5 *.hdf5 *.mat *.sdt);;All files (*.*)")

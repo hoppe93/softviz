@@ -170,31 +170,34 @@ class SyntheticImage:
 
             # Otherwise, load modern (HDF5-based) MAT-file
             except NotImplementedError:
-                matfile = h5py.File(filename)
-
-                self.imageData = np.transpose(matfile['image'][:,:])
-                self.detectorPosition = matfile['detectorPosition'][:,0]
-                self.detectorDirection = matfile['detectorDirection'][:,0]
-                self.detectorVisang = matfile['detectorVisang'][0,0]
-
-                try: self.wall = matfile['wall'][:,:]
-                except KeyError: pass
-
-                try: self.separatrix = matfile['separatrix'][:,:]
-                except KeyError: pass
+                self._loadHDF5(filename)
 
             self.wall_rmax = np.amax(self.wall[:,0])
             self.wall_rmin = np.amin(self.wall[:,0])
+        elif filename.endswith('.h5') or filename.endswith('.hdf5'):
+            self._loadHDF5(filename)
 
-            #print(self.wall[:,0])
-            #print(self.detectorPosition)
-            #print(self.detectorDirection)
-            #print(self.detectorVisang)
+            self.wall_rmax = np.amax(self.wall[:,0])
+            self.wall_rmin = np.amin(self.wall[:,0])
         else:
             raise NotImplementedError("Unrecognized image format. Unable to load file.")
 
         self._imageMax = np.amax(self.imageData)
         self._intmax = self._imageMax
+
+    def _loadHDF5(self, filename):
+        matfile = h5py.File(filename)
+
+        self.imageData = np.transpose(matfile['image'][:,:])
+        self.detectorPosition = matfile['detectorPosition'][:,0]
+        self.detectorDirection = matfile['detectorDirection'][:,0]
+        self.detectorVisang = matfile['detectorVisang'][0,0]
+
+        try: self.wall = matfile['wall'][:,:]
+        except KeyError: pass
+
+        try: self.separatrix = matfile['separatrix'][:,:]
+        except KeyError: pass
 
     @staticmethod
     def registerGeriMap():
