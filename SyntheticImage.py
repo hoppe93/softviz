@@ -357,11 +357,11 @@ class SyntheticImage:
         self.overlayFluxSurfaces = True
 
     def removeFluxSurfaces(self):
-        if self._fluxOverlayHandles is not None:
+        if not self._fluxOverlayHandles:
             for h in self._fluxOverlayHandles:
                 h.remove()
 
-            self._fluxOverlayHandles = None
+            self._fluxOverlayHandles = []
 
         self.overlayFluxSurfaces = False
 
