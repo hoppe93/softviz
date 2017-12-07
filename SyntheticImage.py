@@ -170,31 +170,34 @@ class SyntheticImage:
 
             # Otherwise, load modern (HDF5-based) MAT-file
             except NotImplementedError:
-                matfile = h5py.File(filename)
-
-                self.imageData = np.transpose(matfile['image'][:,:])
-                self.detectorPosition = matfile['detectorPosition'][:,0]
-                self.detectorDirection = matfile['detectorDirection'][:,0]
-                self.detectorVisang = matfile['detectorVisang'][0,0]
-
-                try: self.wall = matfile['wall'][:,:]
-                except KeyError: pass
-
-                try: self.separatrix = matfile['separatrix'][:,:]
-                except KeyError: pass
+                self._loadHDF5(filename)
 
             self.wall_rmax = np.amax(self.wall[:,0])
             self.wall_rmin = np.amin(self.wall[:,0])
+        elif filename.endswith('.h5') or filename.endswith('.hdf5'):
+            self._loadHDF5(filename)
 
-            #print(self.wall[:,0])
-            #print(self.detectorPosition)
-            #print(self.detectorDirection)
-            #print(self.detectorVisang)
+            self.wall_rmax = np.amax(self.wall[:,0])
+            self.wall_rmin = np.amin(self.wall[:,0])
         else:
             raise NotImplementedError("Unrecognized image format. Unable to load file.")
 
         self._imageMax = np.amax(self.imageData)
         self._intmax = self._imageMax
+
+    def _loadHDF5(self, filename):
+        matfile = h5py.File(filename)
+
+        self.imageData = np.transpose(matfile['image'][:,:])
+        self.detectorPosition = matfile['detectorPosition'][:,0]
+        self.detectorDirection = matfile['detectorDirection'][:,0]
+        self.detectorVisang = matfile['detectorVisang'][0,0]
+
+        try: self.wall = matfile['wall'][:,:]
+        except KeyError: pass
+
+        try: self.separatrix = matfile['separatrix'][:,:]
+        except KeyError: pass
 
     @staticmethod
     def registerGeriMap():
@@ -461,6 +464,8 @@ class SyntheticImage:
 
         # Rotate points along with camera
         cossin = [np.dot(self.detectorDirection, [0,1,0]), np.dot(self.detectorDirection, [1,0,0])]
+        cossin = cossin / np.sqrt(cossin[0]**2 + cossin[1]**2)  # Normalize
+
         extent = self._getImageExtent()
         l1 = extent[1]
         l2 = extent[1] * (self.wall_rmin/self.wall_rmax)
@@ -580,6 +585,7 @@ def plotOrthogonalCrossSection(ax, wall, cameraPosition, cameraDirection, plotst
     zc = wall[:,1]
 
     cossin = [np.dot(cameraDirection, [0,1,0]), np.dot(cameraDirection, [1,0,0])]
+    cossin = cossin / np.sqrt(cossin[0]**2 + cossin[1]**2)      # Normalize
     nrc, nyc, nzc = _rotateWall(rc, zc, cossin=cossin)
     return plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)
 
