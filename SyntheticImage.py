@@ -447,7 +447,7 @@ class SyntheticImage:
         self._topviewOverlayHandles = None
         self.overlayTopview = False
 
-    def plotTopviewOrthogonalCrossSection(self, color='w', linewidth=1):
+    def plotTopviewOrthogonalCrossSection(self, plotstyle='w', linewidth=1):
         """
         Plot the toroidal section corresponding to the
         cross-section that is orthogonal to the camera
@@ -467,7 +467,7 @@ class SyntheticImage:
         l1 = extent[1]
         l2 = extent[1] * (self.wall_rmin/self.wall_rmax)
 
-        self._topviewOCSHandle = self.axes.plot([l1*cossin[0], l2*cossin[0]], [-l1*cossin[1], -l2*cossin[1]], color, linewidth=linewidth)
+        self._topviewOCSHandle = self.axes.plot([l1*cossin[0], l2*cossin[0]], [-l1*cossin[1], -l2*cossin[1]], plotstyle, linewidth=linewidth)
 
     def removeTopviewOrthogonalCrossSection(self):
         """
