@@ -483,6 +483,13 @@ class SyntheticImage:
 
         self.overlayTopviewOrthogonalCrossSection = True
 
+    def plotWall(self, plotstyle='w', degreesStart=[0], degreesEnd=[360],
+             spacing=1, linewidth=0.1, rlim=0, zuplim=0, zlowlim=0,
+             rmin=-1, rmax=1, zmin=-1, zmax=1):
+        plotwall(self.axes, self.wall, self.detectorPosition, self.detectorDirection,
+             plotstyle, degreesStart, degreesEnd, spacing, linewidth,
+             rlim, zuplim, zlowlim, rmin, rmax, zmin, zmax)
+
     #####################################################
     #
     # INTERNAL ROUTINES
@@ -609,6 +616,8 @@ def plotwall(ax, wall, cameraPosition, cameraDirection, plotstyle='w',
             # [2] ROTATE, TRANSLATE AND PLOT WALL SECTION AROUND CAMERA
             h = plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)
             handles.append(h)
+
+    return handles
 
 def plotCrossSection(ax, rc, yc, zc, cameraPosition, cameraDirection, plotstyle='w', linewidth=0.1):
     """ Plot a wall cross-section (that is rotated to some toroidal angle in the
