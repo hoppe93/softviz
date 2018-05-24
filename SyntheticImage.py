@@ -143,6 +143,11 @@ class SyntheticImage:
         self._image.set_clim(vmin=zerolevel, vmax=intmax)
         #self.canvas.draw_idle()
 
+    def limitExtents(self):
+        extent = self._getImageExtent()
+        self.axes.set_xlim(extent[0], extent[1])
+        self.axes.set_ylim(extent[2], extent[3])
+
     def loadImageFile(self, filename):
         """
         Load a SOFT image file.
@@ -489,6 +494,13 @@ class SyntheticImage:
         plotwall(self.axes, self.wall, self.detectorPosition, self.detectorDirection,
              plotstyle, degreesStart, degreesEnd, spacing, linewidth,
              rlim, zuplim, zlowlim, rmin, rmax, zmin, zmax)
+
+    def drawCircle(self, r, z, linewidth=1, degreeStart=180, degreeEnd=360):
+        t = np.linspace(degreeStart * np.pi / 180, degreeEnd * np.pi / 180)
+        xp = r * np.cos(t)
+        yp = r * np.sin(t)
+        zp = np.zeros(t.shape) + z
+        plotCrossSection(self.axes, xp, yp, zp, self.detectorPosition, self.detectorDirection, linewidth=linewidth)
 
     #####################################################
     #
