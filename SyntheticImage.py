@@ -554,8 +554,14 @@ def _limitwall(rc, zc, rlim, zuplim, zlowlim):
     nrc, nzc = np.array([]), np.array([])
     for i in range(len(rc)):
         if rlim <= 0 or rc[i] < rlim:
-            if zuplim != 0 and zc[i] > zuplim: continue
-            if zlowlim != 0 and zc[i] < zlowlim: continue
+            if zuplim != 0 and zc[i] > zuplim:
+                nrc = np.append(nrc, np.nan)
+                nzc = np.append(nzc, np.nan)
+                continue
+            if zlowlim != 0 and zc[i] < zlowlim:
+                nrc = np.append(nrc, np.nan)
+                nzc = np.append(nzc, np.nan)
+                continue
 
             nrc = np.append(nrc, rc[i])
             nzc = np.append(nzc, zc[i])
