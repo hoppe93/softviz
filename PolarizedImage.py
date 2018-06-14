@@ -17,6 +17,10 @@ class ImageType(Enum):
     NEGV = '-V'
     LINPOLFRAC = 'Linear polarization fraction'
     POLANGLE = 'Polarization angle'
+    HORIZONTAL = 'Horizontal'
+    VERTICAL = 'Vertical'
+    DIAGONAL1 = 'Diagonal 1'
+    DIAGONAL2 = 'Diagonal 2'
 
 class PolarizedImage:
     
@@ -75,7 +79,7 @@ class PolarizedImage:
         self.labelFontSize = fontsize
 
 
-    def assembleImage(self, nRows=None, nCols=None):
+    def assembleImage(self, nRows=None, nCols=None, border=True, plotLabel=True):
         if nRows is not None: self.nRows = nRows
         if nCols is not None: self.nCols = nCols
 
@@ -90,7 +94,7 @@ class PolarizedImage:
             self.axes.append(self.figure.add_subplot(self.nRows, self.nCols, i+1))
 
             if i < len(self.imageType):
-                self.plotImage(i)
+                self.plotImage(i, border, plotLabel)
 
     def loadPolarizedImage(self, filename):
         """
@@ -147,7 +151,7 @@ class PolarizedImage:
         try: self.separatrix = matfile['separatrix'][:,:]
         except KeyError: pass
 
-    def plotImage(self, index):
+    def plotImage(self, index, border=True, plotLabel=True):
         imgtype = self.imageType[index]
         ax = self.axes[index]
         colormap = plt.get_cmap(self.colormapName)
@@ -190,17 +194,31 @@ class PolarizedImage:
         elif imgtype == ImageType.POLANGLE:
             img = 0.5 * np.atan(self.StokesU / self.StokesQ)
             intmin, intmax = -np.pi/2, np.pi/2
+        elif imgtype == ImageType.HORIZONTAL:
+            img = 0.5 * (self.StokesI + self.StokesQ)
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.VERTICAL:
+            img = 0.5 * (self.StokesI - self.StokesQ)
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.DIAGONAL1:
+            img = 0.5 * (self.StokesI + self.StokesU)
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.DIAGONAL2:
+            img = 0.5 * (self.StokesI - self.StokesU)
+            intmin, intmax = 0, np.amax(img)
 
         self.images[index] = ax.imshow(img, origin='lower', cmap=colormap, interpolation=None, clim=(intmin, intmax), extent=[0,1,0,1])
         #ax.set_axis_off()
-        ax.spines['bottom'].set_color('white')
-        ax.spines['top'].set_color('white')
-        ax.spines['left'].set_color('white')
-        ax.spines['right'].set_color('white')
+        if border:
+            ax.spines['bottom'].set_color('white')
+            ax.spines['top'].set_color('white')
+            ax.spines['left'].set_color('white')
+            ax.spines['right'].set_color('white')
 
         #ax.set_title(imgtype.value, color='white', fontdict={'fontsize': self.titleFontSize})
-        x, y = self.labeXLoc, self.labelYLoc
-        ax.text(x, y, imgtype.value, color='white', fontdict={'fontsize': self.labelFontSize}, horizontalalignment=self.labelHorizontalAlignment)
+        if plotLabel:
+            x, y = self.labeXLoc, self.labelYLoc
+            ax.text(x, y, imgtype.value, color='white', fontdict={'fontsize': self.labelFontSize}, horizontalalignment=self.labelHorizontalAlignment)
 
     def plotColorbar(self):
         """
