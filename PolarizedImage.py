@@ -151,61 +151,75 @@ class PolarizedImage:
         try: self.separatrix = matfile['separatrix'][:,:]
         except KeyError: pass
 
+    @staticmethod
+    def getPolarizationQuantity(imgtype, I, Q, U, V):
+        """
+        Returns the polarization quantity corresponding
+        to the given image type.
+        """
+        img = np.zeros(np.shape(I))
+        intmin, intmax = 0, 1
+
+        if imgtype == ImageType.I:
+            img = np.copy(I)
+            intmin, intmax = 0, np.amax(I)
+        elif imgtype == ImageType.POSQ:
+            img = np.copy(Q)
+            img[img < 0] = 0
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.NEGQ:
+            img = -np.copy(Q)
+            img[img < 0] = 0
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.POSU:
+            img = np.copy(U)
+            img[img < 0] = 0
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.NEGU:
+            img = -np.copy(U)
+            img[img < 0] = 0
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.POSV:
+            img = np.copy(V)
+            img[img < 0] = 0
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.NEGV:
+            img = -np.copy(V)
+            img[img < 0] = 0
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.LINPOLFRAC:
+            img = np.sqrt(U**2 + Q**2) / I
+            img = np.nan_to_num(img)
+            intmin, intmax = 0, 1
+        elif imgtype == ImageType.POLANGLE:
+            img = 0.5 * np.arctan(U / Q)
+            intmin, intmax = -np.pi/2, np.pi/2
+        elif imgtype == ImageType.HORIZONTAL:
+            img = 0.5 * (I + Q)
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.VERTICAL:
+            img = 0.5 * (I - Q)
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.DIAGONAL1:
+            img = 0.5 * (I + U)
+            intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.DIAGONAL2:
+            img = 0.5 * (I - U)
+            intmin, intmax = 0, np.amax(img)
+
+        return img, intmin, intmax
+
     def plotImage(self, index, border=True, plotLabel=True):
         imgtype = self.imageType[index]
         ax = self.axes[index]
         colormap = plt.get_cmap(self.colormapName)
 
-        img = np.zeros(np.shape(self.StokesI))
+        img = np.zeros(self.StokesI)
         intmin, intmax = 0, 1
         if imgtype == ImageType.EMPTY:
             return
-        elif imgtype == ImageType.I:
-            img = np.copy(self.StokesI)
-            intmin, intmax = 0, np.amax(self.StokesI)
-        elif imgtype == ImageType.POSQ:
-            img = np.copy(self.StokesQ)
-            img[img < 0] = 0
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.NEGQ:
-            img = -np.copy(self.StokesQ)
-            img[img < 0] = 0
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.POSU:
-            img = np.copy(self.StokesU)
-            img[img < 0] = 0
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.NEGU:
-            img = -np.copy(self.StokesU)
-            img[img < 0] = 0
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.POSV:
-            img = np.copy(self.StokesV)
-            img[img < 0] = 0
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.NEGV:
-            img = -np.copy(self.StokesV)
-            img[img < 0] = 0
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.LINPOLFRAC:
-            img = np.sqrt(self.StokesU**2 + self.StokesQ**2) / self.StokesI
-            img = np.nan_to_num(img)
-            intmin, intmax = 0, 1
-        elif imgtype == ImageType.POLANGLE:
-            img = 0.5 * np.atan(self.StokesU / self.StokesQ)
-            intmin, intmax = -np.pi/2, np.pi/2
-        elif imgtype == ImageType.HORIZONTAL:
-            img = 0.5 * (self.StokesI + self.StokesQ)
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.VERTICAL:
-            img = 0.5 * (self.StokesI - self.StokesQ)
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.DIAGONAL1:
-            img = 0.5 * (self.StokesI + self.StokesU)
-            intmin, intmax = 0, np.amax(img)
-        elif imgtype == ImageType.DIAGONAL2:
-            img = 0.5 * (self.StokesI - self.StokesU)
-            intmin, intmax = 0, np.amax(img)
+        else:
+            img, intmin, intmax = PolarizedImage.getPolarizationQuantity(imgtype, self.StokesI, self.StokesQ, self.StokesU, self.StokesV)
 
         self.images[index] = ax.imshow(img, origin='lower', cmap=colormap, interpolation=None, clim=(intmin, intmax), extent=[0,1,0,1])
         #ax.set_axis_off()

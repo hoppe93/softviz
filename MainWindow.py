@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QMessageBox
 
+from PolarizedImage import ImageType
+
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -29,6 +31,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.separatrix = None
         self.imageMax = 0
         self.brightImageModifier = 1
+        self.imageType = ImageType.I
 
         # Create plot window
         self.plotWindow = PlotWindow()
@@ -51,6 +54,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.cbColormap.addItem('viridis')
         self.ui.cbColormap.addItem('jet')
 
+        # Add polarized image options
+        for s in ImageType:
+            if s != ImageType.EMPTY:
+                self.ui.cbImageType.addItem(s.value)
+
+        #self.ui.cbImageType.addItem('Image')
+        #self.ui.cbImageType.addItem('Stokes Q (+)')
+        #self.ui.cbImageType.addItem('Stokes Q (-)')
+        #self.ui.cbImageType.addItem('Stokes U (+)')
+        #self.ui.cbImageType.addItem('Stokes U (-)')
+        #self.ui.cbImageType.addItem('Stokes V (+)')
+        #self.ui.cbImageType.addItem('Stokes V (-)')
+        #self.ui.cbImageType.addItem('Linear polarization fraction')
+        #self.ui.cbImageType.addItem('Polarization angle')
+        #self.ui.cbImageType.addItem('Horizontal')
+        #self.ui.cbImageType.addItem('Vertical')
+        #self.ui.cbImageType.addItem('Diagonal 1')
+        #self.ui.cbImageType.addItem('Diagonal 2')
+
         # Check command-line arguments
         if len(sys.argv) == 2:
             if os.path.isfile(sys.argv[1]):
@@ -63,6 +85,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.sliderIntensity.valueChanged.connect(self.intensityChanged)
         self.ui.cbPlotType.currentIndexChanged.connect(self.toggleLogarithmic)
         self.ui.cbColormap.currentIndexChanged.connect(self.setColormap)
+        self.ui.cbImageType.currentIndexChanged.connect(self.setImageType)
         self.ui.cbColorbar.stateChanged.connect(self.toggleColorbar)
         self.ui.cbInvert.stateChanged.connect(self.setColormap)
         self.ui.cbBrightImage.stateChanged.connect(self.intensityChanged)
@@ -106,7 +129,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.txtFilename.setText(filename)
         self.filename = filename
 
-        self.plotWindow.image.loadImageFile(filename)
+        self.plotWindow.image.loadImageFile(filename, self.imageType)
         imageMax = self.plotWindow.image.getImageMax()
 
         # Enable overlay checkboxes
@@ -164,6 +187,10 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.plotWindow.image.setColormap(cmname)
             self.plotWindow.syntheticImageUpdated(True)
+
+    def setImageType(self):
+        self.imageType = ImageType(self.ui.cbImageType.currentText())
+        self.reloadFile()
 
     def setWallOverlay(self):
         self.vesselDialog.show()

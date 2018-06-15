@@ -10,6 +10,7 @@ import numpy as np
 import scipy.io
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.ticker
+from PolarizedImage import ImageType, PolarizedImage
 
 class SyntheticImage:
     
@@ -148,11 +149,13 @@ class SyntheticImage:
         self.axes.set_xlim(extent[0], extent[1])
         self.axes.set_ylim(extent[2], extent[3])
 
-    def loadImageFile(self, filename):
+    def loadImageFile(self, filename, imgtype=ImageType.I):
         """
         Load a SOFT image file.
 
         filename: Name of file to load.
+        imgtype:  Type of image to load (applicable only to
+                  polarized images)
         """
         # DAT-file: for legacy support
         if filename.endswith('.dat') or filename.endswith('.topview'):
@@ -162,7 +165,16 @@ class SyntheticImage:
             try:
                 matfile = scipy.io.loadmat(filename)
 
-                self.imageData = np.transpose(matfile['image'])
+                if 'image' in matfile:
+                    self.imageData = np.transpose(matfile['image'])
+                elif 'StokesI' in matfile:
+                    I = np.transpose(matfile['StokesI'])
+                    Q = np.transpose(matfile['StokesQ'])
+                    U = np.transpose(matfile['StokesU'])
+                    V = np.transpose(matfile['StokesV'])
+
+                    self.imageData, _, _ = PolarizedImage.getPolarizationQuantity(imgtype, I, Q, U, V)
+
                 self.detectorPosition = matfile['detectorPosition'][0]
                 self.detectorDirection = matfile['detectorDirection'][0]
                 self.detectorVisang = matfile['detectorVisang'][0][0]
@@ -175,12 +187,12 @@ class SyntheticImage:
 
             # Otherwise, load modern (HDF5-based) MAT-file
             except NotImplementedError:
-                self._loadHDF5(filename)
+                self._loadHDF5(filename, imgtype)
 
             self.wall_rmax = np.amax(self.wall[:,0])
             self.wall_rmin = np.amin(self.wall[:,0])
         elif filename.endswith('.h5') or filename.endswith('.hdf5'):
-            self._loadHDF5(filename)
+            self._loadHDF5(filename, imgtype)
 
             self.wall_rmax = np.amax(self.wall[:,0])
             self.wall_rmin = np.amin(self.wall[:,0])
@@ -190,10 +202,19 @@ class SyntheticImage:
         self._imageMax = np.amax(self.imageData)
         self._intmax = self._imageMax
 
-    def _loadHDF5(self, filename):
+    def _loadHDF5(self, filename, imgtype=ImageType.I):
         matfile = h5py.File(filename)
 
-        self.imageData = np.transpose(matfile['image'][:,:])
+        if 'image' in matfile:
+            self.imageData = np.transpose(matfile['image'][:,:])
+        elif 'StokesI' in matfile:
+            I = np.transpose(matfile['StokesI'][:,:])
+            Q = np.transpose(matfile['StokesQ'][:,:])
+            U = np.transpose(matfile['StokesU'][:,:])
+            V = np.transpose(matfile['StokesV'][:,:])
+
+            self.imageData, _, _ = PolarizedImage.getPolarizationQuantity(imgtype, I, Q, U, V)
+
         self.detectorPosition = matfile['detectorPosition'][:,0]
         self.detectorDirection = matfile['detectorDirection'][:,0]
         self.detectorVisang = matfile['detectorVisang'][0,0]
