@@ -179,7 +179,10 @@ class SyntheticImage:
                 self.detectorDirection = matfile['detectorDirection'][0]
                 self.detectorVisang = matfile['detectorVisang'][0][0]
 
-                try: self.wall = np.transpose(matfile['wall'])
+                try:
+                    self.wall = matfile['wall']
+                    if self.wall.shape[0] == 2:
+                        self.wall = np.transpose(self.wall)
                 except KeyError: pass
 
                 try: self.separatrix = matfile['separatrix']
@@ -215,14 +218,28 @@ class SyntheticImage:
 
             self.imageData, _, _ = PolarizedImage.getPolarizationQuantity(imgtype, I, Q, U, V)
 
-        self.detectorPosition = matfile['detectorPosition'][:,0]
-        self.detectorDirection = matfile['detectorDirection'][:,0]
+        self.detectorPosition = matfile['detectorPosition'][:,:]
+        self.detectorDirection = matfile['detectorDirection'][:,:]
         self.detectorVisang = matfile['detectorVisang'][0,0]
 
-        try: self.wall = matfile['wall'][:,:]
+        if self.detectorPosition.shape[0] == 3:
+            self.detectorPosition = self.detectorPosition.T
+        if self.detectorDirection.shape[0] == 3:
+            self.detectorDirection = self.detectorDirection.T
+
+        self.detectorPosition = self.detectorPosition[0]
+        self.detectorDirection = self.detectorDirection[0]
+
+        try:
+            self.wall = matfile['wall'][:,:]
+            if self.wall.shape[0] == 2:
+                self.wall = np.transpose(self.wall)
         except KeyError: pass
 
-        try: self.separatrix = matfile['separatrix'][:,:]
+        try:
+            self.separatrix = matfile['separatrix'][:,:]
+            if self.separatrix.shape[0] == 2:
+                self.separatrix = np.transpose(self.separatrix)
         except KeyError: pass
 
     @staticmethod
@@ -323,7 +340,8 @@ class SyntheticImage:
         extent = self._getImageExtent()
 
         # Plot image
-        self._image = self.axes.imshow(imageData, origin='lower', cmap=colormap,
+        #self._image = self.axes.imshow(imageData, origin='lower', cmap=colormap,
+        self._image = self.axes.imshow(imageData, cmap=colormap,
                           interpolation=None, clim=(intmin, intmax),
                           extent=extent)
         self.axes.set_axis_off()
