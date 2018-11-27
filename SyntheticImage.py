@@ -27,6 +27,7 @@ class SyntheticImage:
         self.figure = figure
         #self.flux = {'R': [], 'Z': [], 'lengths': [], 'radii': []}
         self.flux = None
+        self.maskLevel = None
         self.overlayWallCrossSection = False# Show wall cross-section overlay?
         self.overlaySeparatrix = False      # Show separatrix overlay?
         self.overlayDetectorNormal = False
@@ -85,6 +86,7 @@ class SyntheticImage:
     def setDetector(self, direction, position, visionangle): self.detectorDirection, self.detectorPosition, self.detectorVisang = direction, position, visionangle
     def setFluxSurfaces(self, flux): self.flux = flux
     def setImage(self, image): self.imageData = image
+    def setMaskLevel(self, level=None): self.maskLevel = level
     def setSeparatrix(self, separatrix): self.separatrix = separatrix
     def setWall(self, wall): self.wall, self.wall_rmax, self.wall_rmin = wall, np.amax(wall[0,:]), np.amin(wall[0,:])
 
@@ -336,6 +338,12 @@ class SyntheticImage:
         # Get the image (linear or logarithmized)
         imageData, intmin, intmax = self._getImageData()
 
+        # Apply mask if requested
+        zorder = 0
+        if self.maskLevel is not None:
+            imageData = np.ma.masked_where(imageData <= intmax*self.maskLevel, imageData)
+            zorder = 10     # Put on top of everything
+
         # Compute image extent
         extent = self._getImageExtent()
 
@@ -343,7 +351,7 @@ class SyntheticImage:
         #self._image = self.axes.imshow(imageData, origin='lower', cmap=colormap,
         self._image = self.axes.imshow(imageData, cmap=colormap,
                           interpolation=None, clim=(intmin, intmax),
-                          extent=extent)
+                          extent=extent, zorder=zorder)
         self.axes.set_axis_off()
 
     def plotOverlays(self):
@@ -534,12 +542,12 @@ class SyntheticImage:
              plotstyle, degreesStart, degreesEnd, spacing, linewidth,
              rlim, zuplim, zlowlim, rmin, rmax, zmin, zmax)
 
-    def drawCircle(self, r, z, linewidth=1, degreeStart=180, degreeEnd=360):
+    def drawCircle(self, r, z, plotstyle='w', linewidth=1, degreeStart=180, degreeEnd=360):
         t = np.linspace(degreeStart * np.pi / 180, degreeEnd * np.pi / 180)
         xp = r * np.cos(t)
         yp = r * np.sin(t)
         zp = np.zeros(t.shape) + z
-        plotCrossSection(self.axes, xp, yp, zp, self.detectorPosition, self.detectorDirection, linewidth=linewidth)
+        plotCrossSection(self.axes, xp, yp, zp, self.detectorPosition, self.detectorDirection, linewidth=linewidth, plotstyle=plotstyle)
 
     #####################################################
     #
