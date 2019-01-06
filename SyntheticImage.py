@@ -293,7 +293,10 @@ class SyntheticImage:
         self.axes.get_xaxis().set_major_locator(matplotlib.ticker.NullLocator())
         self.axes.get_yaxis().set_major_locator(matplotlib.ticker.NullLocator())
 
-        self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0, facecolor='black')
+        fcolor = self.figure.patch.get_facecolor()
+
+        #self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0, facecolor='black')
+        self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0, facecolor=fcolor)
 
     def update(self):
         self.canvas.draw()
