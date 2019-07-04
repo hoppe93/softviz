@@ -220,9 +220,13 @@ class SyntheticImage:
 
             self.imageData, _, _ = PolarizedImage.getPolarizationQuantity(imgtype, I, Q, U, V)
 
-        self.detectorPosition = matfile['detectorPosition'][:,:]
-        self.detectorDirection = matfile['detectorDirection'][:,:]
-        self.detectorVisang = matfile['detectorVisang'][0,0]
+        self.detectorPosition = matfile['detectorPosition'][:]
+        self.detectorDirection = matfile['detectorDirection'][:]
+
+        if len(matfile['detectorVisang'].shape) == 2:
+            self.detectorVisang = matfile['detectorVisang'][0,0]
+        else:
+            self.detectorVisang = matfile['detectorVisang'][0]
 
         if self.detectorPosition.shape[0] == 3:
             self.detectorPosition = self.detectorPosition.T
