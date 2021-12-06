@@ -24,6 +24,7 @@ class SyntheticImage:
         self.detectorDirection = None
         self.detectorPosition = None
         self.detectorVisang = None
+        self.detectorRoll = 0
         self.figure = figure
         #self.flux = {'R': [], 'Z': [], 'lengths': [], 'radii': []}
         self.flux = None
@@ -33,6 +34,7 @@ class SyntheticImage:
         self.overlayDetectorNormal = False
         self.overlayFluxSurfaces = False     # Show flux surface overlay?
         self.overlayTopview = False         # Show topview overlay?
+        self.overlayTopviewSeparatrix = False
         self.overlayTopviewOrthogonalCrossSection  = False
         self.imageData = None
         self.imageIntensityMax = 1      # Ceiling of colormap
@@ -50,6 +52,7 @@ class SyntheticImage:
         self._separatrixOverlayHandle = None
         self._topviewOCSHandle = None
         self._topviewOverlayHandles = None
+        self._topviewSeparatrixOverlayHandles = None
         self._wallCrossSectionOverlayHandle = None
 
         if self.figure is None:
@@ -83,7 +86,7 @@ class SyntheticImage:
     #####################################################
     def setCaptions(self, captions): self.captions = captions
     def setColormap(self, cmname): self.colormapName = cmname
-    def setDetector(self, direction, position, visionangle): self.detectorDirection, self.detectorPosition, self.detectorVisang = direction, position, visionangle
+    def setDetector(self, direction, position, visionangle, roll=0): self.detectorDirection, self.detectorPosition, self.detectorVisang, self.detectorRoll = direction, position, visionangle, roll
     def setFluxSurfaces(self, flux): self.flux = flux
     def setImage(self, image): self.imageData = image
     def setMaskLevel(self, level=None): self.maskLevel = level
@@ -181,6 +184,9 @@ class SyntheticImage:
                 self.detectorDirection = matfile['detectorDirection'][0]
                 self.detectorVisang = matfile['detectorVisang'][0][0]
 
+                try: self.detectorRoll = matfile['detectorRoll'][0][0]
+                except KeyError: pass
+
                 try:
                     self.wall = matfile['wall']
                     if self.wall.shape[0] == 2:
@@ -208,7 +214,7 @@ class SyntheticImage:
         self._intmax = self._imageMax
 
     def _loadHDF5(self, filename, imgtype=ImageType.I):
-        matfile = h5py.File(filename)
+        matfile = h5py.File(filename, 'r')
 
         if 'image' in matfile:
             self.imageData = np.transpose(matfile['image'][:,:])
@@ -228,13 +234,17 @@ class SyntheticImage:
         else:
             self.detectorVisang = matfile['detectorVisang'][0]
 
-        if self.detectorPosition.shape[0] == 3:
-            self.detectorPosition = self.detectorPosition.T
-        if self.detectorDirection.shape[0] == 3:
-            self.detectorDirection = self.detectorDirection.T
+        try: self.detectorRoll = matfile['detectorRoll'][:][0]
+        except KeyError: pass
 
-        self.detectorPosition = self.detectorPosition[0]
-        self.detectorDirection = self.detectorDirection[0]
+        if len(self.detectorPosition.shape) == 2:
+            if self.detectorPosition.shape[0] == 3:
+                self.detectorPosition = self.detectorPosition.T
+            if self.detectorDirection.shape[0] == 3:
+                self.detectorDirection = self.detectorDirection.T
+
+            self.detectorPosition = self.detectorPosition[0]
+            self.detectorDirection = self.detectorDirection[0]
 
         try:
             self.wall = matfile['wall'][:,:]
@@ -300,7 +310,7 @@ class SyntheticImage:
         fcolor = self.figure.patch.get_facecolor()
 
         #self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0, facecolor='black')
-        self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0, facecolor=fcolor)
+        self.canvas.print_figure(filename, bbox_inches='tight', pad_inches=0, facecolor=fcolor, dpi=600)
 
     def update(self):
         self.canvas.draw()
@@ -318,6 +328,7 @@ class SyntheticImage:
         self._fluxOverlayHandles = []
         self._separatrixOverlayHandle = None
         self._topviewOverlayHandles = None
+        self._topviewSeparatrixOverlayHandles = None
         self._topviewOCSHandle = None
         self._wallOverlayHandle = None
 
@@ -346,7 +357,15 @@ class SyntheticImage:
             self._colorbar = self.figure.colorbar(self._image, shrink=0.8, ticks=[0,mx*0.2,mx*0.4,mx*0.6,mx*0.8,mx])
             self._colorbar.ax.set_yticklabels(['0%','20%','40%','60%','80%','100%'])
         else:
-            self._colorbar = self.figure.colorbar(self._image, shrink=0.8)
+            mn = self._image.get_clim()[0]
+
+            if mn < 0:
+                mx = max(abs(mn), self._image.get_clim()[1])
+                dm = 2*mx
+                mn = -mx
+                self._colorbar = self.figure.colorbar(self._image, shrink=0.8, ticks=[mn, mn+dm*0.2, mn+dm*0.4, mn+dm*0.6, mn+dm*0.8, mx])
+            else:
+                self._colorbar = self.figure.colorbar(self._image, shrink=0.8)
         self._colorbar.ax.tick_params(labelcolor='white', color='white')
 
     def removeColorbar(self):
@@ -396,6 +415,8 @@ class SyntheticImage:
             self.plotSeparatrix()
         if self.overlayTopview:
             self.plotTopview()
+        if self.overlayTopviewSeparatrix:
+            self.plotTopviewSeparatrix()
         if self.overlayTopviewOrthogonalCrossSection:
             self.plotTopviewOrthogonalCrossSection()
         if self.overlayWallCrossSection:
@@ -498,27 +519,36 @@ class SyntheticImage:
             self._separatrixOverlayHandle = None
         self.overlaySeparatrix = False
 
-    def plotTopview(self, color='w', linewidth=1):
+    def plotTopview(self, wall=None, color='w', linewidth=1):
         """
         Plots a topview ovelay over the image.
         Also toggles the setting so that 'assembleImage' will
         automatically include the overlay.
         """
-        if self.wall is None:
-            raise ValueError("No wall data has been specified, which is required for the topview")
+        if wall is None:
+            if self.wall is None:
+                raise ValueError("No wall data has been specified, which is required for the topview")
+            else:
+                wall = self.wall
 
         self.removeTopview()
         t = np.linspace(0, 2*np.pi)
         extent = self._getImageExtent()
 
+        wall_rmin = np.amin(wall[:,0])
+        wall_rmax = np.amax(wall[:,0])
+
         rmaj = extent[1]
-        rmin = rmaj * (self.wall_rmin/self.wall_rmax)
+        rmin = rmaj * (wall_rmin/wall_rmax)
 
         h1 = self.axes.plot(rmaj * np.cos(t), rmaj * np.sin(t), color, linewidth=linewidth)[0]
         h2 = self.axes.plot(rmin * np.cos(t), rmin * np.sin(t), color, linewidth=linewidth)[0]
 
-        self._topviewOverlayHandles = (h1, h2)
-        self.overlayTopview = True
+        if wall is None:
+            self._topviewOverlayHandles = (h1, h2)
+            self.overlayTopview = True
+        else:
+            return (h1, h2)
 
     def removeTopview(self):
         """
@@ -532,6 +562,33 @@ class SyntheticImage:
 
         self._topviewOverlayHandles = None
         self.overlayTopview = False
+
+    def plotTopviewSeparatrix(self, color='w', linewidth=1):
+        """
+        Plots the separatrix boundaries in a top view.
+        Also toggles the setting so that 'assembleImage' will
+        automatically include the overlay.
+        """
+        if self.separatrix is None:
+            raise ValueError("No separatrix data has been specified, which is required for the topview")
+
+        (h1, h2) = self.plotTopview(wall=self.separatrix, color=color, linewidth=linewidth)
+        self._topviewSeparatrixOverlayHandles = (h1, h2)
+        self.overlayTopviewSeparatrix = True
+
+    def removeTopviewSeparatrix(self):
+        """
+        Removes any topview separatrix overlay plotted
+        over the image.
+        """
+
+        if self._topviewSeparatrixOverlayHandles is not None:
+            h1, h2 = self._topviewSeparatrixOverlayHandles
+            h1.remove()
+            h2.remove()
+
+        self._topviewSeparatrixOverlayHandles = None
+        self.overlayTopviewSeparatrix = False
 
     def plotTopviewOrthogonalCrossSection(self, plotstyle='w', linewidth=1):
         """
@@ -570,7 +627,7 @@ class SyntheticImage:
              spacing=1, linewidth=0.1, rlim=0, zuplim=0, zlowlim=0,
              rmin=-1, rmax=1, zmin=-1, zmax=1):
         plotwall(self.axes, self.wall, self.detectorPosition, self.detectorDirection,
-             plotstyle, degreesStart, degreesEnd, spacing, linewidth,
+             self.detectorRoll, plotstyle, degreesStart, degreesEnd, spacing, linewidth,
              rlim, zuplim, zlowlim, rmin, rmax, zmin, zmax)
 
     def drawCircle(self, r, z, plotstyle='w', linewidth=1, degreeStart=180, degreeEnd=360):
@@ -595,18 +652,22 @@ class SyntheticImage:
         """
         img = self.imageData
         intmax = self.imageIntensityMax * self._imageMax
-        zerolevel = 0
+        intmin = np.amin(img)
+
+        if intmin < 0:
+            intmax = max(abs(intmin), intmax)
+            intmin = -intmax
 
         if self.logarithmic:
             img = np.log10(img)
             intmax = np.log10(intmax)
-            zerolevel = intmax - 40
+            intmin = intmax - 40
 
             # Set all elements that are log10(0) = -inf or
             # at least below the "zero" level to "zero"
-            img[np.where(img < zerolevel)] = zerolevel
+            img[np.where(img < intmin)] = intmin
 
-        return img, zerolevel, intmax
+        return img, intmin, intmax
 
     def _getImageExtent(self):
         """
@@ -661,6 +722,27 @@ def _rotateWall(rc, zc, angle=0, cossin=[]):
 
     return nrc, nyc, nzc
 
+
+def _rotateAboutAxis(xc, yc, zc, axis, angle=0):
+    dx = axis[0]
+    dy = axis[1]
+    dz = axis[2]
+
+    cs = np.cos(-angle)
+    sn = np.sin(-angle)
+
+    R = np.array([
+        [cs+dx**2*(1-cs),    dx*dy*(1-cs)-dz*sn, dx*dz*(1-cs)+dy*sn],
+        [dy*dx*(1-cs)+dz*sn, cs+dy**2*(1-cs),    dy*dz*(1-cs)-dx*sn],
+        [dz*dx*(1-cs)-dy*sn, dz*dy*(1-cs)+dx*sn, cs+dz**2*(1-cs)]
+    ])
+
+    V = np.array([xc, yc, zc])
+    X = np.matmul(R, V)
+
+    return X[0,:], X[1,:], X[2,:]
+    
+
 def _transformWall(rc, yc, zc, cameraPosition, cameraDirection):
     """ Transform wall section (rotate and translate) so that
         it matches the camera setup """
@@ -692,7 +774,7 @@ def plotOrthogonalCrossSection(ax, wall, cameraPosition, cameraDirection, plotst
     nrc, nyc, nzc = _rotateWall(rc, zc, cossin=cossin)
     return plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)
 
-def plotwall(ax, wall, cameraPosition, cameraDirection, plotstyle='w',
+def plotwall(ax, wall, cameraPosition, cameraDirection, cameraRoll=0, plotstyle='w',
              degreesStart=[0], degreesEnd=[360], spacing=1, linewidth=0.1,
              rlim=0, zuplim=0, zlowlim=0, rmin=-1, rmax=1, zmin=-1, zmax=1):
     """ Plot the wall. Allows setting limits on which parts to plot, and
@@ -708,6 +790,10 @@ def plotwall(ax, wall, cameraPosition, cameraDirection, plotstyle='w',
         for degree in range(degreesStart[i], degreesEnd[i], spacing):
             # [1] ROTATE WALL SECTION AROUND ORIGO
             nrc, nyc, nzc = _rotateWall(rc, zc, angle=degree)
+
+            # [2] INTRODUCE CAMERA ROLL
+            if cameraRoll != 0:
+                nrc, nyc, nzc = _rotateAboutAxis(nrc, nyc, nzc, cameraDirection, angle=cameraRoll)
 
             # [2] ROTATE, TRANSLATE AND PLOT WALL SECTION AROUND CAMERA
             h = plotCrossSection(ax, nrc, nyc, nzc, cameraPosition, cameraDirection, plotstyle, linewidth)

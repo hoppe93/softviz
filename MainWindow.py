@@ -53,6 +53,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.cbColormap.addItem('gray')
         self.ui.cbColormap.addItem('viridis')
         self.ui.cbColormap.addItem('jet')
+        self.ui.cbColormap.addItem('RdBu')
 
         # Add polarized image options
         for s in ImageType:

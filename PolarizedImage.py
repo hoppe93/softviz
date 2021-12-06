@@ -11,10 +11,13 @@ class ImageType(Enum):
     I = 'I'
     POSQ = 'Q'
     NEGQ = '-Q'
+    PMQ  = '+-Q'
     POSU = 'U'
     NEGU = '-U'
+    PMU  = '+-U'
     POSV = 'V'
     NEGV = '-V'
+    PMV  = '+-V'
     LINPOLFRAC = 'Linear polarization fraction'
     POLANGLE = 'Polarization angle'
     HORIZONTAL = 'Horizontal'
@@ -171,6 +174,16 @@ class PolarizedImage:
             img = -np.copy(Q)
             img[img < 0] = 0
             intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.PMQ:
+            img = np.copy(Q)
+            mn, mx = np.amin(img), np.amax(img)
+            if mn < 0:
+                if abs(mn) > mx:
+                    intmin, intmax = mn, -mn
+                else:
+                    intmin, intmax = -mx, mx
+            else:
+                intmin, intmax = 0, max(mn, mx)
         elif imgtype == ImageType.POSU:
             img = np.copy(U)
             img[img < 0] = 0
@@ -179,6 +192,16 @@ class PolarizedImage:
             img = -np.copy(U)
             img[img < 0] = 0
             intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.PMU:
+            img = np.copy(U)
+            mn, mx = np.amin(img), np.amax(img)
+            if mn < 0:
+                if abs(mn) > mx:
+                    intmin, intmax = mn, -mn
+                else:
+                    intmin, intmax = -mx, mx
+            else:
+                intmin, intmax = 0, max(mn, mx)
         elif imgtype == ImageType.POSV:
             img = np.copy(V)
             img[img < 0] = 0
@@ -187,13 +210,24 @@ class PolarizedImage:
             img = -np.copy(V)
             img[img < 0] = 0
             intmin, intmax = 0, np.amax(img)
+        elif imgtype == ImageType.PMV:
+            img = np.copy(V)
+            mn, mx = np.amin(img), np.amax(img)
+            if mn < 0:
+                if abs(mn) > mx:
+                    intmin, intmax = mn, -mn
+                else:
+                    intmin, intmax = -mx, mx
+            else:
+                intmin, intmax = 0, max(mn, mx)
         elif imgtype == ImageType.LINPOLFRAC:
             img = np.sqrt(U**2 + Q**2) / I
             img = np.nan_to_num(img)
             intmin, intmax = 0, 1
         elif imgtype == ImageType.POLANGLE:
-            img = 0.5 * np.arctan(U / Q)
-            intmin, intmax = -np.pi/2, np.pi/2
+            img = 0.5 * np.arctan2(U, Q) * 180/np.pi
+            img = np.nan_to_num(img)
+            intmin, intmax = -90, 90
         elif imgtype == ImageType.HORIZONTAL:
             img = 0.5 * (I + Q)
             intmin, intmax = 0, np.amax(img)
@@ -246,7 +280,9 @@ class PolarizedImage:
         self._colorbarax = self.figure.add_axes([0.02,-0.06,0.97,0.05])
 
         mx = self.images[0].get_clim()[1]
-        self._colorbar = self.figure.colorbar(self.images[0], cax=self._colorbarax, ticks=[0,mx*0.2,mx*0.4,mx*0.6,mx*0.8,mx], orientation='horizontal')
+        mn = self.images[0].get_clim()[0]
+        dm = (mx-mn)
+        self._colorbar = self.figure.colorbar(self.images[0], cax=self._colorbarax, ticks=[mn,mn+dm*0.2,mn+dm*0.4,mn+dm*0.6,mn+dm*0.8,mx], orientation='horizontal')
         self._colorbar.ax.set_xticklabels(['0%','20%','40%','60%','80%','100%'])
         self._colorbar.ax.tick_params(labelcolor='white', color='white', labelsize=self.labelFontSize)
 
