@@ -239,9 +239,9 @@ class SyntheticImage:
 
         if len(self.detectorPosition.shape) == 2:
             if self.detectorPosition.shape[0] == 3:
-                self.detectorPosition = self.detectorPosition.T
+                self.detectorPosition = self.detectorPosition.reshape((1,3))
             if self.detectorDirection.shape[0] == 3:
-                self.detectorDirection = self.detectorDirection.T
+                self.detectorDirection = self.detectorDirection.reshape((1,3))
 
             self.detectorPosition = self.detectorPosition[0]
             self.detectorDirection = self.detectorDirection[0]
